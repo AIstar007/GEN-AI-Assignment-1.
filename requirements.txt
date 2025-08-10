@@ -3,6 +3,7 @@ pandas
 PyPDF2
 groq
 python-dotenv
+python-docx
 sentence-transformers
 faiss-cpu
 langchain
