@@ -1,0 +1,497 @@
+import os
+import io
+import csv
+import time
+import streamlit as st
+from dotenv import load_dotenv
+from datetime import datetime
+from typing import List
+
+import pandas as pd
+import PyPDF2
+from docx import Document as DocxDocument
+
+# LangChain / embeddings / vectorstore imports (attempt)
+EMBEDDINGS_OK = False
+FAISS_OK = False
+HUGGINGFACE_EMBEDDINGS = None
+FAISS = None
+
+try:
+    # Try to import HuggingFaceEmbeddings (langchain-community)
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    HUGGINGFACE_EMBEDDINGS = HuggingFaceEmbeddings
+    EMBEDDINGS_OK = True
+except Exception:
+    EMBEDDINGS_OK = False
+    # We'll use a TF-IDF fallback below
+
+try:
+    from langchain_community.vectorstores import FAISS as FAISS_store
+    FAISS = FAISS_store
+    FAISS_OK = True
+except Exception:
+    FAISS_OK = False
+
+# Use LangChain prompt/LLM pieces (you may keep them; ChatGroq used below)
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_groq import ChatGroq
+from langchain.schema import Document
+
+# Memory (lightweight)
+from langchain.memory import ConversationBufferWindowMemory
+
+# Load environment variables
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
+
+# ---------------------- Helpers ----------------------
+def load_csv_safely(uploaded_file) -> pd.DataFrame | None:
+    """Attempt CSV load with delimiter auto-detection; skip bad lines."""
+    try:
+        sample = uploaded_file.read(200000).decode("utf-8", errors="ignore")
+        uploaded_file.seek(0)
+        dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+        sep = dialect.delimiter
+    except Exception:
+        sep = ","
+    try:
+        df = pd.read_csv(uploaded_file, sep=sep, on_bad_lines="skip", engine="python", quotechar='"')
+        return df
+    except Exception:
+        try:
+            # final attempt: plain read
+            uploaded_file.seek(0)
+            df = pd.read_csv(uploaded_file, on_bad_lines="skip", engine="python")
+            return df
+        except Exception:
+            return None
+
+def extract_text_from_pdf(uploaded_file) -> str:
+    try:
+        reader = PyPDF2.PdfReader(uploaded_file)
+        text = ""
+        for i, page in enumerate(reader.pages):
+            try:
+                page_text = page.extract_text() or ""
+                text += f"\n--- Page {i+1} ---\n{page_text}\n"
+            except Exception:
+                continue
+        return text
+    except Exception:
+        return ""
+
+def extract_text_from_docx(uploaded_file) -> str:
+    try:
+        doc = DocxDocument(uploaded_file)
+        out = []
+        for p in doc.paragraphs:
+            if p.text and p.text.strip():
+                out.append(p.text)
+        # simple table extraction
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = " | ".join([cell.text.strip() for cell in row.cells])
+                if row_text:
+                    out.append(row_text)
+        return "\n".join(out)
+    except Exception:
+        return ""
+
+# ---------------- TF-IDF Fallback Retriever ----------------
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+class TFIDFWrapper:
+    """
+    Minimal TF-IDF vector store wrapper that mimics a retriever's
+    get_relevant_documents(query) -> List[Document]
+    """
+    def __init__(self):
+        self.texts = []          # list[str]
+        self.metadatas = []      # list[dict]
+        self.vectorizer = None
+        self.matrix = None
+
+    def add_documents(self, documents: List[Document]):
+        for d in documents:
+            self.texts.append(d.page_content)
+            self.metadatas.append(d.metadata if d.metadata else {})
+        # (re)build matrix
+        self.vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
+        self.matrix = self.vectorizer.fit_transform(self.texts)
+
+    def from_documents(self, documents: List[Document]):
+        self.texts = [d.page_content for d in documents]
+        self.metadatas = [d.metadata if d.metadata else {} for d in documents]
+        self.vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
+        self.matrix = self.vectorizer.fit_transform(self.texts)
+
+    def get_relevant_documents(self, query: str, k: int = 3) -> List[Document]:
+        if self.matrix is None or self.vectorizer is None or len(self.texts) == 0:
+            return []
+        q_vec = self.vectorizer.transform([query])
+        sims = cosine_similarity(q_vec, self.matrix)[0]
+        top_idxs = sims.argsort()[::-1][:k]
+        results = []
+        for i in top_idxs:
+            results.append(Document(page_content=self.texts[i], metadata=self.metadatas[i]))
+        return results
+
+# ---------------------- RAG Chatbot ----------------------
+class EnhancedRAGChatbot:
+    def __init__(self):
+        self.embeddings = None            # HuggingFaceEmbeddings instance or None
+        self.vectorstore = None           # FAISS instance or TFIDFWrapper
+        self.llm = None                   # ChatGroq instance
+        self.chain = None                 # prompt chain (ChatPromptTemplate|LLM|parser)
+        self.memory = None
+        self.conversation_history = []
+        self._init_components()
+
+    def _init_components(self):
+        # 1) Try embeddings (HuggingFaceEmbeddings) and FAISS
+        if EMBEDDINGS_OK and FAISS_OK:
+            try:
+                self.embeddings = HUGGINGFACE_EMBEDDINGS(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    model_kwargs={"device": "cpu"}
+                )
+            except Exception:
+                # if embedding init fails, fallback to TF-IDF
+                self.embeddings = None
+        else:
+            self.embeddings = None
+
+        # 2) Initialize LLM (ChatGroq) if key exists
+        groq_key = os.getenv("GROQ_API_KEY") or GROQ_API_KEY
+        if groq_key:
+            try:
+                # default model name can be set in session_state
+                model_name = st.session_state.get("selected_model", "gemma2-9b-it")
+                temp = st.session_state.get("temperature", 0.1)
+                self.llm = ChatGroq(groq_api_key=groq_key, model_name=model_name, temperature=temp)
+            except Exception:
+                self.llm = None
+        else:
+            self.llm = None
+
+        # 3) Memory
+        try:
+            self.memory = ConversationBufferWindowMemory(k=5, return_messages=True)
+        except Exception:
+            self.memory = None
+
+        # 4) Setup prompt chain if LLM present
+        if self.llm:
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", """You are SAP Ariba Expert Assistant...
+
+CONTEXT INFORMATION:
+{context}
+
+CONVERSATION HISTORY:
+{chat_history}
+
+Current Date: {current_date}"""),
+                ("user", "{question}")
+            ])
+            output_parser = StrOutputParser()
+            try:
+                self.chain = prompt_template | self.llm | output_parser
+            except Exception:
+                self.chain = None
+
+        # 5) Initialize a default vectorstore (TF-IDF) with some default docs
+        self._load_default_documents()
+
+    def _load_default_documents(self):
+        docs = [
+            Document(page_content="SAP Ariba Contract Management Process details...", metadata={"source": "Contract_Management_Guide"}),
+            Document(page_content="SAP Ariba Sourcing Process details...", metadata={"source": "Sourcing_Process_Guide"}),
+        ]
+        # If embeddings+FAISS available, use FAISS, else TF-IDF fallback
+        if self.embeddings is not None and FAISS_OK:
+            try:
+                self.vectorstore = FAISS.from_documents(docs, self.embeddings)
+            except Exception:
+                # fallback
+                self.vectorstore = TFIDFWrapper()
+                self.vectorstore.from_documents(docs)
+        else:
+            self.vectorstore = TFIDFWrapper()
+            self.vectorstore.from_documents(docs)
+
+    def add_documents(self, documents: List[Document]):
+        """Add documents (list of langchain.schema.Document) to vectorstore."""
+        if self.vectorstore is None:
+            # should not happen, but safe guard
+            self.vectorstore = TFIDFWrapper()
+        # FAISS supports .add_documents ; TFIDFWrapper supports .add_documents
+        try:
+            if FAISS_OK and hasattr(self.vectorstore, "add_documents") and not isinstance(self.vectorstore, TFIDFWrapper):
+                # FAISS instance expects LangChain Documents
+                self.vectorstore.add_documents(documents)
+            elif isinstance(self.vectorstore, TFIDFWrapper):
+                self.vectorstore.add_documents(documents)
+            else:
+                # last resort: TFIDF recreate
+                self.vectorstore = TFIDFWrapper()
+                self.vectorstore.from_documents(documents)
+        except Exception:
+            # fallback to TFIDF re-create
+            self.vectorstore = TFIDFWrapper()
+            self.vectorstore.from_documents(documents)
+
+    def chat(self, question: str) -> str:
+        # retrieve docs
+        if self.vectorstore is None:
+            return "No documents indexed. Upload documents first."
+
+        # Use correct retriever method depending on type
+        try:
+            if FAISS_OK and hasattr(self.vectorstore, "as_retriever") and not isinstance(self.vectorstore, TFIDFWrapper):
+                retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
+                docs = retriever.get_relevant_documents(question)
+            elif isinstance(self.vectorstore, TFIDFWrapper):
+                docs = self.vectorstore.get_relevant_documents(question, k=3)
+            else:
+                # generic attempt for other vectorstores
+                if hasattr(self.vectorstore, "get_relevant_documents"):
+                    docs = self.vectorstore.get_relevant_documents(question)
+                else:
+                    docs = []
+        except Exception as e:
+            return f"Retriever error: {e}"
+
+        context_text = "\n\n".join([d.page_content for d in docs])
+        chat_history = "\n".join(self.conversation_history[-10:])
+        current_date = datetime.now().strftime("%Y-%m-%d")
+
+        # If chain not available, return a simple combined-context answer
+        if self.chain is None:
+            # return a summary-like answer using context (simple heuristic)
+            if context_text.strip():
+                answer = f"Context found from documents:\n\n{context_text[:1000]}...\n\n(LLM unavailable — set GROQ_API_KEY to enable LLM answers.)"
+            else:
+                answer = "No contextual documents found and LLM not available."
+        else:
+            try:
+                answer = self.chain.invoke({
+                    "context": context_text,
+                    "chat_history": chat_history,
+                    "question": question,
+                    "current_date": current_date
+                })
+            except Exception as e:
+                answer = f"LLM/chain error: {e}"
+
+        self.conversation_history.append(f"User: {question}")
+        self.conversation_history.append(f"AI: {answer}")
+        return answer
+
+# ------------------ Streamlit UI & Callbacks ------------------
+# Initialize session state safe defaults
+if "chatbot" not in st.session_state:
+    st.session_state.chatbot = EnhancedRAGChatbot()
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""  # safe to initialize BEFORE widget
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "gemma2-9b-it"
+if "temperature" not in st.session_state:
+    st.session_state.temperature = 0.1
+
+def process_uploaded_files(uploaded_files):
+    """Extract text from uploaded files and add to vectorstore."""
+    docs = []
+    for f in uploaded_files:
+        name = f.name.lower()
+        content = ""
+        if name.endswith(".pdf"):
+            content = extract_text_from_pdf(f)
+        elif name.endswith(".docx"):
+            content = extract_text_from_docx(f)
+        elif name.endswith(".txt"):
+            try:
+                f.seek(0)
+                content = f.read().decode("utf-8", errors="ignore")
+            except Exception:
+                content = ""
+        elif name.endswith(".csv"):
+            f.seek(0)
+            df = load_csv_safely(f)
+            if df is not None:
+                content = df.to_string(index=False)
+        elif name.endswith((".xls", ".xlsx")):
+            try:
+                f.seek(0)
+                df = pd.read_excel(f, engine="openpyxl")
+                content = df.to_string(index=False)
+            except Exception:
+                content = ""
+        else:
+            # skip other types in this simple version
+            content = ""
+        if content and content.strip():
+            docs.append(Document(page_content=content, metadata={"source": f.name}))
+
+    if docs:
+        st.session_state.chatbot.add_documents(docs)
+        st.success(f"Indexed {len(docs)} uploaded files.")
+    else:
+        st.warning("No content extracted from uploaded files.")
+
+def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenerator):
+    """Word-by-word streaming into the provided placeholder."""
+    words = text.split()
+    out = ""
+    for w in words:
+        out += w + " "
+        # replace newlines with <br> for HTML display
+        html = out.replace("\n", "<br>")
+        placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#111; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+        time.sleep(0.02)  # tweak speed here
+    # final render (ensure trailing parts show)
+    placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#111; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+
+def on_send():
+    """Callback for Send button. Uses st.session_state['user_input'] safely."""
+    text = st.session_state.user_input.strip()
+    if not text:
+        st.warning("Please enter a message.")
+        return
+    # append user's message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": text,
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
+    # Update LLM settings if changed (attempt)
+    try:
+        st.session_state.chatbot.llm = ChatGroq(
+            groq_api_key=GROQ_API_KEY,
+            model_name=st.session_state.get("selected_model", "gemma2-9b-it"),
+            temperature=st.session_state.get("temperature", 0.1)
+        )
+        # rebuild chain
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", """You are SAP Ariba Expert Assistant...
+
+CONTEXT INFORMATION:
+{context}
+
+CONVERSATION HISTORY:
+{chat_history}
+
+Current Date: {current_date}"""),
+            ("user", "{question}")
+        ])
+        st.session_state.chatbot.chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+    except Exception:
+        # if LLM init fails, we'll still answer with fallback
+        pass
+
+    # Generate answer synchronously (blocking) and stream it
+    with st.spinner("Generating answer..."):
+        resp = st.session_state.chatbot.chat(text)
+
+    # STREAM the assistant response into the messages container (append placeholder first)
+    # We will append a temporary message placeholder (so UI layout is consistent)
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "",  # will be updated visually via streaming
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
+    # Clear the input field by setting session_state key (allowed inside callback)
+    st.session_state.user_input = ""
+
+    # Re-render UI after callback by forcing a rerun (but before rerun we stream)
+    # We'll stream into a dedicated placeholder at top of messages container:
+    # Find the messages container placeholder we will build below. For simplicity we use st.experimental_get_query_params
+    # Instead: create a new empty st.empty() and stream into it here.
+    placeholder = st.empty()
+    stream_assistant_text(resp, placeholder)
+
+    # After streaming, update last stored message content so next full redraw shows it (non-stream)
+    # Replace the last assistant message (which had blank content) with full content
+    if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
+        st.session_state.messages[-1]["content"] = resp
+
+def on_clear():
+    st.session_state.messages = []
+    st.session_state.chatbot.conversation_history = []
+
+# ---------------------- Layout ----------------------
+st.markdown("<h1 style='text-align:center'>SAP Ariba RAG Chatbot</h1>", unsafe_allow_html=True)
+col1, col2 = st.columns([3,1])
+
+with col2:
+    st.header("Upload & Settings")
+    uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
+    if uploaded_files:
+        if st.button("Process & Index Uploaded Files"):
+            process_uploaded_files(uploaded_files)
+
+    st.markdown("---")
+    st.subheader("LLM Settings")
+    st.session_state.temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.temperature, key="temperature_slider")
+    st.session_state.selected_model = st.selectbox("Model", ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"], index=0, key="model_select")
+    st.markdown("---")
+    st.subheader("Diagnostics")
+    if EMBEDDINGS_OK:
+        st.success("Embeddings (HuggingFace) available")
+    else:
+        st.warning("Embeddings not available — using TF-IDF fallback")
+    if FAISS_OK:
+        st.success("FAISS available")
+    else:
+        st.info("FAISS not available — using TF-IDF fallback store")
+
+with col1:
+    # messages
+    st.markdown("### Conversation")
+    messages_container = st.container()
+
+    # Render messages (clean HTML, DO NOT call st.markdown() inside f-strings)
+    with messages_container:
+        for m in st.session_state.messages:
+            content = m["content"] or ""
+            # sanitize/format content for HTML by replacing \n with <br>
+            safe_html = content.replace("\n", "<br>")
+            if m["role"] == "user":
+                html = (
+                    "<div style='text-align:right; background:#0b93f6; color:white; "
+                    "padding:10px 12px; border-radius:12px; margin:6px 0; max-width:85%; margin-left:auto;'>"
+                    f"{safe_html}"
+                    f"<div style='font-size:10px;color:#eee;margin-top:6px'>{m['timestamp']}</div>"
+                    "</div>"
+                )
+                st.markdown(html, unsafe_allow_html=True)
+            else:
+                html = (
+                    "<div style='text-align:left; background:#f1f3f4; color:#111; "
+                    "padding:10px 12px; border-radius:12px; margin:6px 0; max-width:85%; margin-right:auto;'>"
+                    f"{safe_html}"
+                    f"<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div>"
+                    "</div>"
+                )
+                st.markdown(html, unsafe_allow_html=True)
+
+    # input row (widget key user_input exists here; mutate only in callbacks)
+    st.text_input("Type your message...", key="user_input", placeholder="Ask me about SAP Ariba...", on_change=None)
+    cols = st.columns([1,1,1])
+    with cols[0]:
+        st.button("Send", on_click=on_send)
+    with cols[1]:
+        st.button("Clear", on_click=on_clear)
+    with cols[2]:
+        st.write("")  # reserved for future buttons
+
+# End footer
+st.markdown("---")
+st.markdown("This demo uses FAISS + HuggingFace embeddings when available; otherwise a TF-IDF fallback retriever is used. Set GROQ_API_KEY in your environment to enable LLM answers.", unsafe_allow_html=True)
