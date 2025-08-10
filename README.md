@@ -5,11 +5,8 @@ It allows you to upload CSV or TXT files, process them into a FAISS vector store
 
 ## Features
 - Upload CSV or TXT documents
-- Robust CSV error handling
 - HuggingFace embeddings for semantic search
-- FAISS vector store for fast retrieval
 - ChatGPT-like streaming responses
-- Conversation history
 
 ## Installation
 ```bash
