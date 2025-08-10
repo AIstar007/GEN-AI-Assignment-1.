@@ -1,5 +1,7 @@
 streamlit
 pandas
+PyPDF2
+groq
 python-dotenv
 sentence-transformers
 faiss-cpu
@@ -7,3 +9,4 @@ langchain
 langchain-community
 langchain-groq
 langchain-text-splitters
+huggingface_hub
