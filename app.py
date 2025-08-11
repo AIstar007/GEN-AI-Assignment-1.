@@ -519,7 +519,8 @@ if webrtc_ctx.audio_receiver:
             st.session_state.user_input = text
             st.success(f"Recognized: {text}")
 
-# ----------- Modern Chat Options Bar -----------
+# ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
+
 chat_option_style = """
     <style>
     .chat-options-bar {
@@ -532,17 +533,26 @@ chat_option_style = """
         gap: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.07);
     }
-    .chat-options-bar input[type="text"] {
-        flex: 1;
-        border: none;
+    .chat-options-bar .option-select {
         background: #232323;
         color: #fff;
-        padding: 8px 12px;
         border-radius: 6px;
+        border: none;
+        padding: 6px 10px;
         font-size: 15px;
-        outline: none;
+        margin-right: 6px;
     }
-    .chat-options-bar button {
+    .chat-options-bar .attach-btn {
+        background: #232323;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 15px;
+        cursor: pointer;
+        margin-right: 6px;
+    }
+    .chat-options-bar .send-btn {
         background: #0b93f6;
         color: #fff;
         border: none;
@@ -551,24 +561,69 @@ chat_option_style = """
         font-size: 15px;
         cursor: pointer;
         transition: background 0.2s;
+        margin-right: 6px;
     }
-    .chat-options-bar button.clear-btn {
+    .chat-options-bar .clear-btn {
         background: #444;
         color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 15px;
+        cursor: pointer;
     }
     </style>
 """
 st.markdown(chat_option_style, unsafe_allow_html=True)
 
-input_col, send_col, clear_col = st.columns([6,1,1])
-with input_col:
-    st.text_input(
-        "",
-        key="user_input",
-        placeholder="Ask me about SAP Ariba...",
-        label_visibility="collapsed"
-    )
-with send_col:
-    st.button("Send", on_click=on_send, use_container_width=True)
-with clear_col:
-    st.button("Clear", on_click=on_clear, use_container_width=True)
+with st.container():
+    chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7, 0.7])
+    # Model select
+    with chat_cols[0]:
+        st.selectbox(
+            "Model",
+            ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"],
+            index=["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"].index(st.session_state.selected_model) if "selected_model" in st.session_state else 0,
+            key="selected_model",
+            label_visibility="collapsed",
+            format_func=lambda x: f"🧠 {x}"
+        )
+    # Mode select
+    with chat_cols[1]:
+        st.selectbox(
+            "Mode",
+            ["Ask", "Chat", "Search"],
+            index=0,
+            key="chat_mode",
+            label_visibility="collapsed",
+            format_func=lambda x: f"💬 {x}"
+        )
+    # Attach button (simulated, opens file uploader)
+    with chat_cols[2]:
+        attach_clicked = st.button("📎", key="attach_btn", use_container_width=True)
+        if attach_clicked:
+            st.session_state.show_attach = True
+    # Text input
+    with chat_cols[3]:
+        st.text_input(
+            "",
+            key="user_input",
+            placeholder="Add context (#), extensions (@), commands (/)...",
+            label_visibility="collapsed"
+        )
+    # Send button
+    with chat_cols[4]:
+        st.button("➤", on_click=on_send, use_container_width=True, key="send_btn")
+    # Clear button
+    with chat_cols[5]:
+        st.button("⨉", on_click=on_clear, use_container_width=True, key="clear_btn")
+    # Microphone button (for speech-to-text)
+    with chat_cols[6]:
+        st.button("🎤", use_container_width=True, key="mic_btn")
+
+# Optional: Show file uploader if attach is clicked
+if st.session_state.get("show_attach", False):
+    st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
+    if st.session_state.get("chat_attach"):
+        process_uploaded_files(st.session_state.chat_attach)
+        st.session_state.show_attach = False
