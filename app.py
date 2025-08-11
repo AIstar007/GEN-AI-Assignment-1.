@@ -50,17 +50,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 PRIMARY = "#0b93f6"
 
-ASSISTANT_SVG = """
-<img src="data:image/svg+xml;utf8,
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' width='28' height='28'>
-  <rect x='8' y='16' width='48' height='32' rx='12' fill='#0b93f6'/>
-  <rect x='20' y='36' width='24' height='6' rx='3' fill='#fff' opacity='0.9'/>
-  <circle cx='24' cy='32' r='5' fill='#fff'/>
-  <circle cx='40' cy='32' r='5' fill='#fff'/>
-  <rect x='28' y='12' width='8' height='8' rx='2' fill='#0b93f6'/>
-  <rect x='16' y='24' width='32' height='16' rx='8' fill='#fff' opacity='0.1'/>
-</svg>"/>
-"""
+# Use a working logo image URL for header and assistant
+HEADER_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
+ASSISTANT_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 
 st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
 st.markdown(f"""
@@ -70,7 +62,7 @@ st.markdown(f"""
         background: linear-gradient(90deg, rgba(11,147,246,0.12), rgba(11,147,246,0.08));
         border-left: 4px solid {PRIMARY};
         padding:10px; border-radius:10px; margin:8px 0; display:flex; gap:8px; align-items:flex-start;
-        color: #fff; /* <-- User message text is now white */
+        color: #fff;
     }}
     .chat-assistant {{
         background:#f3f4f6; padding:10px; border-radius:10px; margin:8px 0; display:flex; gap:8px; align-items:flex-start;
@@ -135,9 +127,8 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-
 QNA_SYSTEM = """
-You are StudyMate, a friendly and accurate study assistant. Use ONLY the provided context passages.
+You are SAP Ariba Expert Assistant. Use ONLY the provided context passages.
 - If the topic or keyword appears in the context, return the relevant details from the context.
 - Do NOT invent facts or use outside knowledge.
 - If the answer is not present in the provided context, reply exactly: "I could not find the answer in the provided material."
@@ -146,7 +137,7 @@ Answer in a simple, customer-friendly tone.
 """
 
 SUMMARY_SYSTEM = """
-You are StudyMate, expert teaching assistant. Using ONLY the provided context, OUTPUT in Markdown:
+You are SAP Ariba Expert Assistant. Using ONLY the provided context, OUTPUT in Markdown:
 
 ### Summary
 <3–6 sentences overview>
@@ -161,7 +152,7 @@ If insufficient info, say: "The provided material does not contain enough inform
 """
 
 QUIZ_SYSTEM = """
-You are StudyMate, a quiz generator. Using ONLY the provided context, create EXACTLY 5 multiple-choice questions.
+You are SAP Ariba Expert Assistant. Using ONLY the provided context, create EXACTLY 5 multiple-choice questions.
 Output strictly in this format for each question:
 
 Q1. Question text
@@ -450,9 +441,9 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
     for w in words:
         out += w + " "
         html = out.replace("\n", "<br>")
-        placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#111; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+        placeholder.markdown(f"<div style='text-align:left; background:#f3f4f6; color:#222; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
         time.sleep(0.02)
-    placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#111; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+    placeholder.markdown(f"<div style='text-align:left; background:#f3f4f6; color:#222; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
 
 def on_send():
     text = st.session_state.user_input.strip()
@@ -508,7 +499,7 @@ def on_clear():
 
 # ---------------------- Layout ----------------------
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/4712/4712027.png", width=80)
+    st.image(HEADER_LOGO_URL, width=80)
     st.title("SAP Ariba RAG Chatbot")
     uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
     if uploaded_files:
@@ -533,7 +524,7 @@ with st.sidebar:
 st.markdown(f"""
     <div class="header-card">
         <div style="flex-shrink:0;">
-            <span class="icon-left">{ASSISTANT_SVG}</span>
+            <img src="{HEADER_LOGO_URL}" class="icon-left"/>
         </div>
         <div>
             <h1 style="color:white;margin:0;">SAP Ariba RAG Chatbot</h1>
@@ -558,7 +549,10 @@ with chat_container:
         if m["role"] == "user":
             st.markdown(f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div class='chat-assistant'><div class='icon-left'>{ASSISTANT_SVG}</div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                unsafe_allow_html=True
+            )
 
 # ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
 with st.container():
@@ -599,6 +593,3 @@ with st.container():
 
 if st.session_state.get("show_attach", False):
     st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
-    if st.session_state.get("chat_attach"):
-        process_uploaded_files(st.session_state.chat_attach)
-        st.session_state.show_attach = False
