@@ -50,7 +50,6 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 PRIMARY = "#0b93f6"
 
-# Use a working logo image URL for header and assistant
 HEADER_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 ASSISTANT_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 
@@ -167,7 +166,6 @@ Rules:
 - Make questions clear and relevant to the context.
 """
 
-# ---------------------- Helpers ----------------------
 def load_csv_safely(uploaded_file) -> pd.DataFrame | None:
     try:
         sample = uploaded_file.read(200000).decode("utf-8", errors="ignore")
@@ -217,7 +215,6 @@ def extract_text_from_docx(uploaded_file) -> str:
     except Exception:
         return ""
 
-# ---------------- TF-IDF Fallback Retriever ----------------
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 class TFIDFWrapper:
@@ -251,7 +248,6 @@ class TFIDFWrapper:
             results.append(Document(page_content=self.texts[i], metadata=self.metadatas[i]))
         return results
 
-# ---------------------- RAG Chatbot ----------------------
 class EnhancedRAGChatbot:
     def __init__(self):
         self.embeddings = None
@@ -385,7 +381,6 @@ Current Date: {current_date}"""),
         self.conversation_history.append(f"AI: {answer}")
         return answer
 
-# ------------------ Streamlit UI & Callbacks ------------------
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = EnhancedRAGChatbot()
 if "messages" not in st.session_state:
@@ -436,14 +431,21 @@ def process_uploaded_files(uploaded_files):
         st.warning("No content extracted from uploaded files.")
 
 def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenerator):
+    """Stream the assistant's response below the latest user message, like ChatGPT."""
     words = text.split()
     out = ""
     for w in words:
         out += w + " "
         html = out.replace("\n", "<br>")
-        placeholder.markdown(f"<div style='text-align:left; background:#f3f4f6; color:#222; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+        placeholder.markdown(
+            f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+            unsafe_allow_html=True
+        )
         time.sleep(0.02)
-    placeholder.markdown(f"<div style='text-align:left; background:#f3f4f6; color:#222; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+    placeholder.markdown(
+        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+        unsafe_allow_html=True
+    )
 
 def on_send():
     text = st.session_state.user_input.strip()
@@ -480,24 +482,37 @@ Current Date: {current_date}"""),
     with st.spinner("Generating answer..."):
         resp = st.session_state.chatbot.chat(text)
 
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "",
-        "timestamp": datetime.now().strftime("%H:%M:%S")
-    })
     st.session_state.user_input = ""
 
-    placeholder = st.empty()
-    stream_assistant_text(resp, placeholder)
-
-    if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
-        st.session_state.messages[-1]["content"] = resp
+    # Render all previous messages except the last user message
+    chat_container = st.container()
+    with chat_container:
+        for i, m in enumerate(st.session_state.messages):
+            content = m["content"] or ""
+            content_html = markdown_to_html(content)
+            safe_html = content_html.replace("\n", "<br>")
+            if m["role"] == "user":
+                st.markdown(f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", unsafe_allow_html=True)
+                # After the latest user message, stream the assistant response below it
+                if i == len(st.session_state.messages) - 1:
+                    placeholder = st.empty()
+                    stream_assistant_text(resp, placeholder)
+                    # Save the assistant message after streaming
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": resp,
+                        "timestamp": datetime.now().strftime("%H:%M:%S")
+                    })
+            elif m["role"] == "assistant":
+                st.markdown(
+                    f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                    unsafe_allow_html=True
+                )
 
 def on_clear():
     st.session_state.messages = []
     st.session_state.chatbot.conversation_history = []
 
-# ---------------------- Layout ----------------------
 with st.sidebar:
     st.image(HEADER_LOGO_URL, width=80)
     st.title("SAP Ariba RAG Chatbot")
@@ -540,20 +555,6 @@ def markdown_to_html(text):
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
     return text
 
-chat_container = st.container()
-with chat_container:
-    for m in st.session_state.messages:
-        content = m["content"] or ""
-        content_html = markdown_to_html(content)
-        safe_html = content_html.replace("\n", "<br>")
-        if m["role"] == "user":
-            st.markdown(f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", unsafe_allow_html=True)
-        else:
-            st.markdown(
-                f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
-                unsafe_allow_html=True
-            )
-
 # ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
 with st.container():
     chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7])
@@ -593,3 +594,6 @@ with st.container():
 
 if st.session_state.get("show_attach", False):
     st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
+    if st.session_state.get("chat_attach"):
+        process_uploaded_files(st.session_state.chat_attach)
+        st.session_state.show_attach =
