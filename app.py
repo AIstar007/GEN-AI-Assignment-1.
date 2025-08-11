@@ -70,7 +70,7 @@ st.markdown(f"""
         background: linear-gradient(90deg, rgba(11,147,246,0.12), rgba(11,147,246,0.08));
         border-left: 4px solid {PRIMARY};
         padding:10px; border-radius:10px; margin:8px 0; display:flex; gap:8px; align-items:flex-start;
-        color: #222;
+        color: #fff; /* <-- User message text is now white */
     }}
     .chat-assistant {{
         background:#f3f4f6; padding:10px; border-radius:10px; margin:8px 0; display:flex; gap:8px; align-items:flex-start;
@@ -135,8 +135,9 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
+
 QNA_SYSTEM = """
-You are SAP Ariba Expert Assistant. Use ONLY the provided context passages.
+You are StudyMate, a friendly and accurate study assistant. Use ONLY the provided context passages.
 - If the topic or keyword appears in the context, return the relevant details from the context.
 - Do NOT invent facts or use outside knowledge.
 - If the answer is not present in the provided context, reply exactly: "I could not find the answer in the provided material."
@@ -145,7 +146,7 @@ Answer in a simple, customer-friendly tone.
 """
 
 SUMMARY_SYSTEM = """
-You are SAP Ariba Expert Assistant. Using ONLY the provided context, OUTPUT in Markdown:
+You are StudyMate, expert teaching assistant. Using ONLY the provided context, OUTPUT in Markdown:
 
 ### Summary
 <3–6 sentences overview>
@@ -160,7 +161,7 @@ If insufficient info, say: "The provided material does not contain enough inform
 """
 
 QUIZ_SYSTEM = """
-You are SAP Ariba Expert Assistant. Using ONLY the provided context, create EXACTLY 5 multiple-choice questions.
+You are StudyMate, a quiz generator. Using ONLY the provided context, create EXACTLY 5 multiple-choice questions.
 Output strictly in this format for each question:
 
 Q1. Question text
@@ -449,9 +450,9 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
     for w in words:
         out += w + " "
         html = out.replace("\n", "<br>")
-        placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#222; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+        placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#111; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
         time.sleep(0.02)
-    placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#222; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
+    placeholder.markdown(f"<div style='text-align:left; background:#f1f3f4; color:#111; padding:10px 12px; border-radius:12px; margin:6px 0;'>{html}</div>", unsafe_allow_html=True)
 
 def on_send():
     text = st.session_state.user_input.strip()
@@ -598,3 +599,6 @@ with st.container():
 
 if st.session_state.get("show_attach", False):
     st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
+    if st.session_state.get("chat_attach"):
+        process_uploaded_files(st.session_state.chat_attach)
+        st.session_state.show_attach = False
