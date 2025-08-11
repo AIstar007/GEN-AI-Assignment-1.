@@ -626,4 +626,5 @@ if st.session_state.last_sources:
             st.markdown(f"**[{idx}] {src}**")
             st.write(snippet)
 
-st.markdown("</div>", unsafe_allow_html=
+st.markdown("</div>", unsafe_allow_html=True)
+
