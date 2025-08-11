@@ -11,51 +11,41 @@ import pandas as pd
 import PyPDF2
 from docx import Document as DocxDocument
 
-# LangChain / embeddings / vectorstore imports (attempt)
+# LangChain / embeddings / vectorstore imports (Qdrant)
 EMBEDDINGS_OK = False
-PINECONE_OK = False
+QDRANT_OK = False
 HUGGINGFACE_EMBEDDINGS = None
-PINECONE = None
+QDRANT = None
 
 try:
-    # Try to import HuggingFaceEmbeddings (langchain-community)
     from langchain_community.embeddings import HuggingFaceEmbeddings
     HUGGINGFACE_EMBEDDINGS = HuggingFaceEmbeddings
     EMBEDDINGS_OK = True
 except Exception:
     EMBEDDINGS_OK = False
-    # We'll use a TF-IDF fallback below
 
 try:
-    import pinecone
-    from langchain_community.vectorstores import Pinecone as PineconeStore
-    pinecone_api_key = os.getenv("PINECONE_API_KEY")
-    pinecone_env = os.getenv("PINECONE_ENVIRONMENT") or "us-west1-gcp"
-    if pinecone_api_key:
-        pinecone.init(api_key=pinecone_api_key, environment=pinecone_env)
-        PINECONE = PineconeStore
-        PINECONE_OK = True
-    else:
-        PINECONE_OK = False
+    from langchain_community.vectorstores import Qdrant as QdrantStore
+    import qdrant_client
+    qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_api_key = os.getenv("QDRANT_API_KEY", None)
+    QDRANT_CLIENT = qdrant_client.QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+    QDRANT = QdrantStore
+    QDRANT_OK = True
 except Exception:
-    PINECONE_OK = False
+    QDRANT_OK = False
 
-# Use LangChain prompt/LLM pieces (you may keep them; ChatGroq used below)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from langchain.schema import Document
-
-# Memory (lightweight)
 from langchain.memory import ConversationBufferWindowMemory
 
-# Load environment variables
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
-# ---------------------- Custom CSS for Modern UI ----------------------
 st.markdown("""
     <style>
     .main {
@@ -95,9 +85,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ---------------------- Helpers ----------------------
 def load_csv_safely(uploaded_file) -> pd.DataFrame | None:
-    """Attempt CSV load with delimiter auto-detection; skip bad lines."""
     try:
         sample = uploaded_file.read(200000).decode("utf-8", errors="ignore")
         uploaded_file.seek(0)
@@ -110,7 +98,6 @@ def load_csv_safely(uploaded_file) -> pd.DataFrame | None:
         return df
     except Exception:
         try:
-            # final attempt: plain read
             uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file, on_bad_lines="skip", engine="python")
             return df
@@ -138,7 +125,6 @@ def extract_text_from_docx(uploaded_file) -> str:
         for p in doc.paragraphs:
             if p.text and p.text.strip():
                 out.append(p.text)
-        # simple table extraction
         for table in doc.tables:
             for row in table.rows:
                 row_text = " | ".join([cell.text.strip() for cell in row.cells])
@@ -148,17 +134,12 @@ def extract_text_from_docx(uploaded_file) -> str:
     except Exception:
         return ""
 
-# ---------------- TF-IDF Fallback Retriever ----------------
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 class TFIDFWrapper:
-    """
-    Minimal TF-IDF vector store wrapper that mimics a retriever's
-    get_relevant_documents(query) -> List[Document]
-    """
     def __init__(self):
-        self.texts = []          # list[str]
-        self.metadatas = []      # list[dict]
+        self.texts = []
+        self.metadatas = []
         self.vectorizer = None
         self.matrix = None
 
@@ -166,7 +147,6 @@ class TFIDFWrapper:
         for d in documents:
             self.texts.append(d.page_content)
             self.metadatas.append(d.metadata if d.metadata else {})
-        # (re)build matrix
         self.vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
         self.matrix = self.vectorizer.fit_transform(self.texts)
 
@@ -187,20 +167,18 @@ class TFIDFWrapper:
             results.append(Document(page_content=self.texts[i], metadata=self.metadatas[i]))
         return results
 
-# ---------------------- RAG Chatbot ----------------------
 class EnhancedRAGChatbot:
     def __init__(self):
-        self.embeddings = None            # HuggingFaceEmbeddings instance or None
-        self.vectorstore = None           # Pinecone instance or TFIDFWrapper
-        self.llm = None                   # ChatGroq instance
-        self.chain = None                 # prompt chain (ChatPromptTemplate|LLM|parser)
+        self.embeddings = None
+        self.vectorstore = None
+        self.llm = None
+        self.chain = None
         self.memory = None
         self.conversation_history = []
         self._init_components()
 
     def _init_components(self):
-        # 1) Try embeddings (HuggingFaceEmbeddings) and Pinecone
-        if EMBEDDINGS_OK and PINECONE_OK:
+        if EMBEDDINGS_OK and QDRANT_OK:
             try:
                 self.embeddings = HUGGINGFACE_EMBEDDINGS(
                     model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -211,7 +189,6 @@ class EnhancedRAGChatbot:
         else:
             self.embeddings = None
 
-        # 2) Initialize LLM (ChatGroq) if key exists
         groq_key = os.getenv("GROQ_API_KEY") or GROQ_API_KEY
         if groq_key:
             try:
@@ -223,13 +200,11 @@ class EnhancedRAGChatbot:
         else:
             self.llm = None
 
-        # 3) Memory
         try:
             self.memory = ConversationBufferWindowMemory(k=5, return_messages=True)
         except Exception:
             self.memory = None
 
-        # 4) Setup prompt chain if LLM present
         if self.llm:
             prompt_template = ChatPromptTemplate.from_messages([
                 ("system", """You are SAP Ariba Expert Assistant...
@@ -249,7 +224,6 @@ Current Date: {current_date}"""),
             except Exception:
                 self.chain = None
 
-        # 5) Initialize a default vectorstore (TF-IDF or Pinecone) with some default docs
         self._load_default_documents()
 
     def _load_default_documents(self):
@@ -257,13 +231,16 @@ Current Date: {current_date}"""),
             Document(page_content="SAP Ariba Contract Management Process details...", metadata={"source": "Contract_Management_Guide"}),
             Document(page_content="SAP Ariba Sourcing Process details...", metadata={"source": "Sourcing_Process_Guide"}),
         ]
-        # If embeddings+Pinecone available, use Pinecone, else TF-IDF fallback
-        if self.embeddings is not None and PINECONE_OK:
+        if self.embeddings is not None and QDRANT_OK:
             try:
-                index_name = "ariba-chatbot"
-                if index_name not in pinecone.list_indexes():
-                    pinecone.create_index(index_name, dimension=384)
-                self.vectorstore = PINECONE.from_documents(docs, self.embeddings, index_name=index_name)
+                collection_name = "ariba-chatbot"
+                self.vectorstore = QDRANT.from_documents(
+                    docs,
+                    self.embeddings,
+                    url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+                    api_key=os.getenv("QDRANT_API_KEY", None),
+                    collection_name=collection_name
+                )
             except Exception:
                 self.vectorstore = TFIDFWrapper()
                 self.vectorstore.from_documents(docs)
@@ -272,11 +249,10 @@ Current Date: {current_date}"""),
             self.vectorstore.from_documents(docs)
 
     def add_documents(self, documents: List[Document]):
-        """Add documents (list of langchain.schema.Document) to vectorstore."""
         if self.vectorstore is None:
             self.vectorstore = TFIDFWrapper()
         try:
-            if PINECONE_OK and hasattr(self.vectorstore, "add_documents") and not isinstance(self.vectorstore, TFIDFWrapper):
+            if QDRANT_OK and hasattr(self.vectorstore, "add_documents") and not isinstance(self.vectorstore, TFIDFWrapper):
                 self.vectorstore.add_documents(documents)
             elif isinstance(self.vectorstore, TFIDFWrapper):
                 self.vectorstore.add_documents(documents)
@@ -291,7 +267,7 @@ Current Date: {current_date}"""),
         if self.vectorstore is None:
             return "No documents indexed. Upload documents first."
         try:
-            if PINECONE_OK and hasattr(self.vectorstore, "as_retriever") and not isinstance(self.vectorstore, TFIDFWrapper):
+            if QDRANT_OK and hasattr(self.vectorstore, "as_retriever") and not isinstance(self.vectorstore, TFIDFWrapper):
                 retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
                 docs = retriever.get_relevant_documents(question)
             elif isinstance(self.vectorstore, TFIDFWrapper):
@@ -328,7 +304,6 @@ Current Date: {current_date}"""),
         self.conversation_history.append(f"AI: {answer}")
         return answer
 
-# ------------------ Streamlit UI & Callbacks ------------------
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = EnhancedRAGChatbot()
 if "messages" not in st.session_state:
@@ -440,8 +415,6 @@ def on_clear():
     st.session_state.messages = []
     st.session_state.chatbot.conversation_history = []
 
-# ---------------------- Layout ----------------------
-
 with st.sidebar:
     st.title("🔧 Settings & Uploads")
     uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
@@ -458,10 +431,10 @@ with st.sidebar:
         st.success("Embeddings (HuggingFace) available")
     else:
         st.warning("Embeddings not available — using TF-IDF fallback")
-    if PINECONE_OK:
-        st.success("Pinecone available")
+    if QDRANT_OK:
+        st.success("Qdrant available")
     else:
-        st.info("Pinecone not available — using TF-IDF fallback store")
+        st.info("Qdrant not available — using TF-IDF fallback store")
     st.markdown("<div class='footer'>Made with ❤️ using Streamlit & LangChain</div>", unsafe_allow_html=True)
 
 st.markdown("<h1 style='text-align:center'>🤖 SAP Ariba RAG Chatbot</h1>", unsafe_allow_html=True)
@@ -483,8 +456,6 @@ with chat_container:
             st.markdown(f"<div class='chat-card user-msg'><img src='https://ui-avatars.com/api/?name=User&background=0b93f6&color=fff' class='avatar'/>{safe_html}<div style='font-size:10px;color:#eee;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
         else:
             st.markdown(f"<div class='chat-card assistant-msg'><img src='https://ui-avatars.com/api/?name=AI&background=f1f3f4&color=222' class='avatar'/>{safe_html}<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
-
-# ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
 
 chat_option_style = """
     <style>
@@ -543,7 +514,6 @@ st.markdown(chat_option_style, unsafe_allow_html=True)
 
 with st.container():
     chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7])
-    # Model select
     with chat_cols[0]:
         st.selectbox(
             "Model",
@@ -553,7 +523,6 @@ with st.container():
             label_visibility="collapsed",
             format_func=lambda x: f"🧠 {x}"
         )
-    # Mode select
     with chat_cols[1]:
         st.selectbox(
             "Mode",
@@ -563,12 +532,10 @@ with st.container():
             label_visibility="collapsed",
             format_func=lambda x: f"💬 {x}"
         )
-    # Attach button (simulated, opens file uploader)
     with chat_cols[2]:
         attach_clicked = st.button("📎", key="attach_btn", use_container_width=True)
         if attach_clicked:
             st.session_state.show_attach = True
-    # Text input
     with chat_cols[3]:
         st.text_input(
             "",
@@ -576,16 +543,13 @@ with st.container():
             placeholder="Add context (#), extensions (@), commands (/)...",
             label_visibility="collapsed"
         )
-    # Send button
     with chat_cols[4]:
         st.button("➤", on_click=on_send, use_container_width=True, key="send_btn")
-    # Clear button
     with chat_cols[5]:
         st.button("⨉", on_click=on_clear, use_container_width=True, key="clear_btn")
 
-# Optional: Show file uploader if attach is clicked
 if st.session_state.get("show_attach", False):
     st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
     if st.session_state.get("chat_attach"):
         process_uploaded_files(st.session_state.chat_attach)
-        st.session_state.show_attach
+        st.session_state.show_attach = False
