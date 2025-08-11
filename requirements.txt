@@ -1,7 +1,4 @@
 streamlit
-streamlit-webrtc
-speechrecognition
-pydub
 pandas
 PyPDF2
 groq
