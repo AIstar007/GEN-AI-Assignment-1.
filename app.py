@@ -484,41 +484,6 @@ with chat_container:
         else:
             st.markdown(f"<div class='chat-card assistant-msg'><img src='https://ui-avatars.com/api/?name=AI&background=f1f3f4&color=222' class='avatar'/>{safe_html}<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
 
-# ----------- Speech-to-Text Audio Input -----------
-
-import streamlit_webrtc
-import speech_recognition as sr
-from pydub import AudioSegment
-
-def audio_to_text(audio_bytes):
-    recognizer = sr.Recognizer()
-    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
-    audio.export("temp.wav", format="wav")
-    with sr.AudioFile("temp.wav") as source:
-        audio_data = recognizer.record(source)
-    try:
-        return recognizer.recognize_google(audio_data)
-    except Exception:
-        return ""
-
-st.subheader("🎤 Speak your question")
-webrtc_ctx = streamlit_webrtc.streamlit_webrtc(
-    key="speech-to-text",
-    mode=streamlit_webrtc.ClientMode.SENDRECV,
-    audio_receiver_size=256,
-    media_stream_constraints={"audio": True, "video": False},
-    async_processing=True,
-)
-
-if webrtc_ctx.audio_receiver:
-    audio_frames = webrtc_ctx.audio_receiver.get_frames(timeout=1)
-    if audio_frames:
-        audio_bytes = audio_frames[0].to_ndarray().tobytes()
-        text = audio_to_text(audio_bytes)
-        if text:
-            st.session_state.user_input = text
-            st.success(f"Recognized: {text}")
-
 # ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
 
 chat_option_style = """
@@ -577,7 +542,7 @@ chat_option_style = """
 st.markdown(chat_option_style, unsafe_allow_html=True)
 
 with st.container():
-    chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7, 0.7])
+    chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7])
     # Model select
     with chat_cols[0]:
         st.selectbox(
@@ -617,13 +582,10 @@ with st.container():
     # Clear button
     with chat_cols[5]:
         st.button("⨉", on_click=on_clear, use_container_width=True, key="clear_btn")
-    # Microphone button (for speech-to-text)
-    with chat_cols[6]:
-        st.button("🎤", use_container_width=True, key="mic_btn")
 
 # Optional: Show file uploader if attach is clicked
 if st.session_state.get("show_attach", False):
     st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
     if st.session_state.get("chat_attach"):
         process_uploaded_files(st.session_state.chat_attach)
-        st.session_state.show_attach = False
+        st.session_state.show_attach
