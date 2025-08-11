@@ -48,6 +48,45 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
+# ---------------------- Custom CSS for Modern UI ----------------------
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f7f9fa;
+    }
+    .chat-card {
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        margin-bottom: 12px;
+        padding: 16px;
+        background: #fff;
+        max-width: 90%;
+    }
+    .user-msg {
+        background: linear-gradient(90deg, #0b93f6 60%, #005bea 100%);
+        color: #fff;
+        text-align: right;
+    }
+    .assistant-msg {
+        background: #f1f3f4;
+        color: #222;
+        text-align: left;
+    }
+    .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    .footer {
+        text-align: center;
+        color: #888;
+        font-size: 13px;
+        margin-top: 32px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # ---------------------- Helpers ----------------------
 def load_csv_safely(uploaded_file) -> pd.DataFrame | None:
@@ -427,16 +466,14 @@ def on_clear():
     st.session_state.chatbot.conversation_history = []
 
 # ---------------------- Layout ----------------------
-st.markdown("<h1 style='text-align:center'>SAP Ariba RAG Chatbot</h1>", unsafe_allow_html=True)
-col1, col2 = st.columns([3,1])
 
-with col2:
-    st.header("Upload & Settings")
+# Sidebar for settings and uploads
+with st.sidebar:
+    st.title("🔧 Settings & Uploads")
     uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
     if uploaded_files:
         if st.button("Process & Index Uploaded Files"):
             process_uploaded_files(uploaded_files)
-
     st.markdown("---")
     st.subheader("LLM Settings")
     st.session_state.temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.temperature, key="temperature_slider")
@@ -451,47 +488,29 @@ with col2:
         st.success("FAISS available")
     else:
         st.info("FAISS not available — using TF-IDF fallback store")
+    st.markdown("<div class='footer'>Made with ❤️ using Streamlit & LangChain</div>", unsafe_allow_html=True)
 
-with col1:
-    # messages
-    st.markdown("### Conversation")
-    messages_container = st.container()
+# Main Chat UI
+st.markdown("<h1 style='text-align:center'>🤖 SAP Ariba RAG Chatbot</h1>", unsafe_allow_html=True)
 
-    # Render messages (clean HTML, DO NOT call st.markdown() inside f-strings)
-    with messages_container:
-        for m in st.session_state.messages:
-            content = m["content"] or ""
-            # sanitize/format content for HTML by replacing \n with <br>
-            safe_html = content.replace("\n", "<br>")
-            if m["role"] == "user":
-                html = (
-                    "<div style='text-align:right; background:#0b93f6; color:white; "
-                    "padding:10px 12px; border-radius:12px; margin:6px 0; max-width:85%; margin-left:auto;'>"
-                    f"{safe_html}"
-                    f"<div style='font-size:10px;color:#eee;margin-top:6px'>{m['timestamp']}</div>"
-                    "</div>"
-                )
-                st.markdown(html, unsafe_allow_html=True)
-            else:
-                html = (
-                    "<div style='text-align:left; background:#f1f3f4; color:#111; "
-                    "padding:10px 12px; border-radius:12px; margin:6px 0; max-width:85%; margin-right:auto;'>"
-                    f"{safe_html}"
-                    f"<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div>"
-                    "</div>"
-                )
-                st.markdown(html, unsafe_allow_html=True)
+# Conversation container
+chat_container = st.container()
+with chat_container:
+    for m in st.session_state.messages:
+        content = m["content"] or ""
+        safe_html = content.replace("\n", "<br>")
+        if m["role"] == "user":
+            st.markdown(f"<div class='chat-card user-msg'><img src='https://ui-avatars.com/api/?name=User&background=0b93f6&color=fff' class='avatar'/>{safe_html}<div style='font-size:10px;color:#eee;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-card assistant-msg'><img src='https://ui-avatars.com/api/?name=AI&background=f1f3f4&color=222' class='avatar'/>{safe_html}<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
 
-    # input row (widget key user_input exists here; mutate only in callbacks)
+# Input row
+input_col, send_col, clear_col = st.columns([6,1,1])
+with input_col:
     st.text_input("Type your message...", key="user_input", placeholder="Ask me about SAP Ariba...", on_change=None)
-    cols = st.columns([1,1,1])
-    with cols[0]:
-        st.button("Send", on_click=on_send)
-    with cols[1]:
-        st.button("Clear", on_click=on_clear)
-    with cols[2]:
-        st.write("")  # reserved for future buttons
+with send_col:
+    st.button("Send", on_click=on_send)
+with clear_col:
+    st.button("Clear", on_click=on_clear)
 
-# End footer
-st.markdown("---")
-st.markdown("This demo uses FAISS + HuggingFace embeddings when available; otherwise a TF-IDF fallback retriever is used. Set GROQ_API_KEY in your environment to enable LLM answers.", unsafe_allow_html=True)
+st.markdown("<div class='footer'>This demo uses FAISS + HuggingFace embeddings when available; otherwise a TF-IDF fallback retriever is used. Set GROQ_API_KEY in your environment to enable LLM answers.</div>", unsafe_allow_html=True)
