@@ -596,4 +596,5 @@ if st.session_state.get("show_attach", False):
     st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
     if st.session_state.get("chat_attach"):
         process_uploaded_files(st.session_state.chat_attach)
-        st.session_state.show_attach =
+        st.session_state.show_attach = False
+
