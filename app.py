@@ -494,11 +494,23 @@ with st.sidebar:
 st.markdown("<h1 style='text-align:center'>🤖 SAP Ariba RAG Chatbot</h1>", unsafe_allow_html=True)
 
 # Conversation container
+
+import re
+
+def markdown_to_html(text):
+    # Convert **bold** to <b>bold</b>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    # Convert *italic* to <i>italic</i>
+    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+    return text
+
 chat_container = st.container()
 with chat_container:
     for m in st.session_state.messages:
         content = m["content"] or ""
-        safe_html = content.replace("\n", "<br>")
+        # Convert markdown bold/italic to HTML
+        content_html = markdown_to_html(content)
+        safe_html = content_html.replace("\n", "<br>")
         if m["role"] == "user":
             st.markdown(f"<div class='chat-card user-msg'><img src='https://ui-avatars.com/api/?name=User&background=0b93f6&color=fff' class='avatar'/>{safe_html}<div style='font-size:10px;color:#eee;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
         else:
