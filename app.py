@@ -33,7 +33,7 @@ from langchain.schema import Document
 from groq import Groq
 from sentence_transformers import SentenceTransformer
 
-PRIMARY = "#0b93f6"  # Updated to match SAP Ariba blue
+PRIMARY = "#0b93f6"  # SAP Ariba blue
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GEMMA_MODEL = "gemma2-9b-it"
 CHUNK_SIZE = 800
@@ -68,6 +68,55 @@ st.markdown(
     .summary-card {{ border-left:6px solid var(--primary); padding:12px; border-radius:8px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.03); margin-bottom:12px; }}
     .small-muted {{ color:#666; font-size:13px; }}
     .active-file {{ font-weight:700; color: var(--primary); }}
+    .chat-options-bar {{
+        display: flex;
+        align-items: center;
+        background: #181818;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }}
+    .chat-options-bar .option-select {{
+        background: #232323;
+        color: #fff;
+        border-radius: 6px;
+        border: none;
+        padding: 6px 10px;
+        font-size: 15px;
+        margin-right: 6px;
+    }}
+    .chat-options-bar .attach-btn {{
+        background: #232323;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 15px;
+        cursor: pointer;
+        margin-right: 6px;
+    }}
+    .chat-options-bar .send-btn {{
+        background: #0b93f6;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-right: 6px;
+    }}
+    .chat-options-bar .clear-btn {{
+        background: #444;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 15px;
+        cursor: pointer;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -282,6 +331,56 @@ st.markdown("")
 
 if st.session_state.active_file:
     st.markdown(f"**Active file:** {st.session_state.active_file}", unsafe_allow_html=True)
+
+# ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
+with st.container():
+    chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7])
+    # Model select
+    with chat_cols[0]:
+        st.selectbox(
+            "Model",
+            ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"],
+            index=0,
+            key="selected_model",
+            label_visibility="collapsed",
+            format_func=lambda x: f"🧠 {x}"
+        )
+    # Mode select
+    with chat_cols[1]:
+        st.selectbox(
+            "Mode",
+            ["Ask", "Chat", "Search"],
+            index=0,
+            key="chat_mode",
+            label_visibility="collapsed",
+            format_func=lambda x: f"💬 {x}"
+        )
+    # Attach button (simulated, opens file uploader)
+    with chat_cols[2]:
+        attach_clicked = st.button("📎", key="attach_btn", use_container_width=True)
+        if attach_clicked:
+            st.session_state.show_attach = True
+    # Text input
+    with chat_cols[3]:
+        st.text_input(
+            "",
+            key="user_input",
+            placeholder="Type your question or command...",
+            label_visibility="collapsed"
+        )
+    # Send button
+    with chat_cols[4]:
+        st.button("➤", use_container_width=True, key="send_btn")
+    # Clear button
+    with chat_cols[5]:
+        st.button("⨉", use_container_width=True, key="clear_btn")
+
+# Optional: Show file uploader if attach is clicked
+if st.session_state.get("show_attach", False):
+    st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
+    if st.session_state.get("chat_attach"):
+        # You can reuse your process_uploaded_files logic here if needed
+        st.session_state.show_attach = False
 
 if uploaded_files:
     added_any = False
@@ -527,4 +626,4 @@ if st.session_state.last_sources:
             st.markdown(f"**[{idx}] {src}**")
             st.write(snippet)
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=
