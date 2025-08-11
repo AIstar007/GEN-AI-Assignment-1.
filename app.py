@@ -476,15 +476,14 @@ def markdown_to_html(text):
 chat_container = st.container()
 with chat_container:
     for m in st.session_state.messages:
-        if m["role"] == "assistant":  # Only show assistant messages
-            content = m["content"] or ""
-            content_html = markdown_to_html(content)
-            safe_html = content_html.replace("\n", "<br>")
-            st.markdown(
-                f"<div class='chat-card assistant-msg'><img src='https://ui-avatars.com/api/?name=AI&background=f1f3f4&color=222' class='avatar'/>{safe_html}<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div></div>",
-                unsafe_allow_html=True
-            )
-            
+        content = m["content"] or ""
+        content_html = markdown_to_html(content)
+        safe_html = content_html.replace("\n", "<br>")
+        if m["role"] == "user":
+            st.markdown(f"<div class='chat-card user-msg'><img src='https://ui-avatars.com/api/?name=User&background=0b93f6&color=fff' class='avatar'/>{safe_html}<div style='font-size:10px;color:#eee;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-card assistant-msg'><img src='https://ui-avatars.com/api/?name=AI&background=f1f3f4&color=222' class='avatar'/>{safe_html}<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
+
 # ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
 
 chat_option_style = """
