@@ -485,7 +485,8 @@ with chat_container:
             st.markdown(f"<div class='chat-card assistant-msg'><img src='https://ui-avatars.com/api/?name=AI&background=f1f3f4&color=222' class='avatar'/>{safe_html}<div style='font-size:10px;color:#666;margin-top:6px'>{m['timestamp']}</div></div>", unsafe_allow_html=True)
 
 # ----------- Speech-to-Text Audio Input -----------
-import streamlit_webrtc as webrtc
+
+import streamlit_webrtc
 import speech_recognition as sr
 from pydub import AudioSegment
 
@@ -501,9 +502,9 @@ def audio_to_text(audio_bytes):
         return ""
 
 st.subheader("🎤 Speak your question")
-webrtc_ctx = webrtc.streamlit_webrtc(
+webrtc_ctx = streamlit_webrtc.streamlit_webrtc(
     key="speech-to-text",
-    mode=webrtc.ClientMode.SENDRECV,
+    mode=streamlit_webrtc.ClientMode.SENDRECV,
     audio_receiver_size=256,
     media_stream_constraints={"audio": True, "video": False},
     async_processing=True,
@@ -518,13 +519,56 @@ if webrtc_ctx.audio_receiver:
             st.session_state.user_input = text
             st.success(f"Recognized: {text}")
 
-# Input row
+# ----------- Modern Chat Options Bar -----------
+chat_option_style = """
+    <style>
+    .chat-options-bar {
+        display: flex;
+        align-items: center;
+        background: #181818;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .chat-options-bar input[type="text"] {
+        flex: 1;
+        border: none;
+        background: #232323;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 15px;
+        outline: none;
+    }
+    .chat-options-bar button {
+        background: #0b93f6;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .chat-options-bar button.clear-btn {
+        background: #444;
+        color: #fff;
+    }
+    </style>
+"""
+st.markdown(chat_option_style, unsafe_allow_html=True)
+
 input_col, send_col, clear_col = st.columns([6,1,1])
 with input_col:
-    st.text_input("Type your message...", key="user_input", placeholder="Ask me about SAP Ariba...", on_change=None)
+    st.text_input(
+        "",
+        key="user_input",
+        placeholder="Ask me about SAP Ariba...",
+        label_visibility="collapsed"
+    )
 with send_col:
-    st.button("Send", on_click=on_send)
+    st.button("Send", on_click=on_send, use_container_width=True)
 with clear_col:
-    st.button("Clear", on_click=on_clear)
-
-st.markdown("<div class='footer'>This demo uses Pinecone + HuggingFace embeddings when available; otherwise a TF-IDF fallback retriever is used. Set GROQ_API_KEY in your environment to enable LLM answers.</div>", unsafe_allow_html=True)
+    st.button("Clear", on_click=on_clear, use_container_width=True)
