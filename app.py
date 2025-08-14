@@ -497,32 +497,17 @@ Current Date: {current_date}"""),
     with st.spinner("Generating answer..."):
         resp = st.session_state.chatbot.chat(text)
 
+    # Add the assistant response to messages
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": resp,
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
+    
+    # Set flag to show streaming effect for the new message
+    st.session_state.show_streaming = True
+    
     st.session_state.user_input = ""
-
-    # Render all previous messages except the last user message
-    chat_container = st.container()
-    with chat_container:
-        for i, m in enumerate(st.session_state.messages):
-            content = m["content"] or ""
-            content_html = markdown_to_html(content)
-            safe_html = content_html.replace("\n", "<br>")
-            if m["role"] == "user":
-                st.markdown(f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", unsafe_allow_html=True)
-                # After the latest user message, stream the assistant response below it
-                if i == len(st.session_state.messages) - 1:
-                    placeholder = st.empty()
-                    stream_assistant_text(resp, placeholder)
-                    # Save the assistant message after streaming
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": resp,
-                        "timestamp": datetime.now().strftime("%H:%M:%S")
-                    })
-            elif m["role"] == "assistant":
-                st.markdown(
-                    f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
-                    unsafe_allow_html=True
-                )
 
 def on_clear():
     st.session_state.messages = []
@@ -757,8 +742,14 @@ if st.session_state.messages:
                 f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", 
                 unsafe_allow_html=True
             )
-        else:
-            st.markdown(
-                f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
-                unsafe_allow_html=True
-            )
+        elif message["role"] == "assistant":
+            # For the last assistant message, show streaming effect
+            if i == len(st.session_state.messages) - 1 and st.session_state.get("show_streaming", False):
+                placeholder = st.empty()
+                stream_assistant_text(content, placeholder)
+                st.session_state.show_streaming = False
+            else:
+                st.markdown(
+                    f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                    unsafe_allow_html=True
+                )
