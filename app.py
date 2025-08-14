@@ -288,7 +288,7 @@ class EnhancedRAGChatbot:
 
         if self.llm:
             prompt_template = ChatPromptTemplate.from_messages([
-                ("system", """You are SAP Ariba Expert Assistant...
+                ("system", QNA_SYSTEM + """
 
 CONTEXT INFORMATION:
 {context}
@@ -381,6 +381,7 @@ Current Date: {current_date}"""),
         self.conversation_history.append(f"AI: {answer}")
         return answer
 
+# Initialize session state
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = EnhancedRAGChatbot()
 if "messages" not in st.session_state:
@@ -391,6 +392,20 @@ if "selected_model" not in st.session_state:
     st.session_state.selected_model = "gemma2-9b-it"
 if "temperature" not in st.session_state:
     st.session_state.temperature = 0.1
+
+# Initialize Summary & Quiz Feature State
+if "summary_output" not in st.session_state:
+    st.session_state.summary_output = None
+if "quiz_questions" not in st.session_state:
+    st.session_state.quiz_questions = None
+if "quiz_index" not in st.session_state:
+    st.session_state.quiz_index = 0
+if "quiz_score" not in st.session_state:
+    st.session_state.quiz_score = 0
+if "quiz_done" not in st.session_state:
+    st.session_state.quiz_done = False
+if "quiz_feedback" not in st.session_state:
+    st.session_state.quiz_feedback = None
 
 def process_uploaded_files(uploaded_files):
     docs = []
@@ -464,7 +479,7 @@ def on_send():
             temperature=st.session_state.get("temperature", 0.1)
         )
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are SAP Ariba Expert Assistant...
+            ("system", QNA_SYSTEM + """
 
 CONTEXT INFORMATION:
 {context}
@@ -555,6 +570,138 @@ def markdown_to_html(text):
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
     return text
 
+# Summary & Quiz UI Panel - Added before chat interface
+with st.expander("📄 Summary & Quiz Tools", expanded=False):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### Generate Summary")
+        summary_topic = st.text_input("Summarize a specific topic (optional):", key="summary_topic")
+        summary_btn = st.button("Generate Summary", key="summary_btn")
+        if summary_btn:
+            # Retrieve relevant docs
+            query = summary_topic.strip() if summary_topic.strip() else "summarize documents"
+            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
+            else:
+                docs = []
+            context_text = "\n\n".join([d.page_content for d in docs])
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            # Use summary prompt
+            if st.session_state.chatbot.llm:
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", SUMMARY_SYSTEM),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+                try:
+                    summary = chain.invoke({
+                        "question": f"Summarize{' the topic: ' + summary_topic if summary_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+                    })
+                except Exception as e:
+                    summary = f"Summary error: {e}"
+            else:
+                summary = "LLM not available for summary."
+            st.session_state.summary_output = summary
+
+        if st.session_state.summary_output:
+            st.markdown(f"<div class='summary-card'>{st.session_state.summary_output}</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("#### Generate Quiz")
+        quiz_topic = st.text_input("Quiz on topic (optional):", key="quiz_topic")
+        quiz_btn = st.button("Generate Quiz", key="quiz_btn")
+        if quiz_btn:
+            # Retrieve relevant docs
+            query = quiz_topic.strip() if quiz_topic.strip() else "quiz"
+            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
+            else:
+                docs = []
+            context_text = "\n\n".join([d.page_content for d in docs])
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            # Use quiz prompt
+            if st.session_state.chatbot.llm:
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", QUIZ_SYSTEM),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+                try:
+                    quiz_raw = chain.invoke({
+                        "question": f"Create a quiz{' on: ' + quiz_topic if quiz_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+                    })
+                except Exception as e:
+                    quiz_raw = f"Quiz error: {e}"
+            else:
+                quiz_raw = "LLM not available for quiz."
+            # Parse quiz questions
+            import re
+            quiz_qs = []
+            if isinstance(quiz_raw, str):
+                pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
+                matches = re.findall(pattern, quiz_raw, re.DOTALL)
+                for i, m in enumerate(matches):
+                    quiz_qs.append({
+                        "question": m[0].strip(),
+                        "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
+                        "answer_index": "ABCD".index(m[5].strip())
+                    })
+            st.session_state.quiz_questions = quiz_qs[:5]
+            st.session_state.quiz_index = 0
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_done = False
+            st.session_state.quiz_feedback = None
+
+# Quiz Runner UI - Added before chat interface
+if st.session_state.quiz_questions:
+    questions = st.session_state.quiz_questions
+    idx = st.session_state.quiz_index
+    total = len(questions)
+    st.markdown("---")
+    st.header("📝 Quiz")
+    if st.session_state.quiz_done:
+        st.success(f"Quiz completed! Your score: {st.session_state.quiz_score} / {total}")
+        if st.button("Restart Quiz"):
+            st.session_state.quiz_index = 0
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_done = False
+            st.session_state.quiz_feedback = None
+            st.rerun()
+    else:
+        q = questions[idx]
+        st.markdown(f"**Question {idx+1} of {total}:**")
+        st.write(q['question'])
+        choice_key = f"quiz_choice_{idx}"
+        selected = st.radio("Select an option:", q['options'], key=choice_key)
+        submit_key = f"submit_{idx}"
+        if st.button("Submit Answer", key=submit_key):
+            sel_index = q['options'].index(selected)
+            correct_index = int(q.get('answer_index', 0))
+            if sel_index == correct_index:
+                st.session_state.quiz_feedback = {"correct": True, "message": "Correct ✅"}
+                st.session_state.quiz_score += 1
+            else:
+                st.session_state.quiz_feedback = {
+                    "correct": False,
+                    "message": f"Wrong ❌  | Correct: Option {correct_index+1}: {q['options'][correct_index]}"
+                }
+            st.rerun()
+        fb = st.session_state.get('quiz_feedback')
+        if fb:
+            if fb.get('correct'):
+                st.success(fb.get('message'))
+            else:
+                st.error(fb.get('message'))
+            if idx + 1 < total:
+                if st.button("Next Question"):
+                    st.session_state.quiz_index += 1
+                    st.session_state.quiz_feedback = None
+                    st.rerun()
+            else:
+                if st.button("Finish Quiz"):
+                    st.session_state.quiz_done = True
+                    st.rerun()
+
 # ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
 with st.container():
     chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7])
@@ -598,3 +745,20 @@ if st.session_state.get("show_attach", False):
         process_uploaded_files(st.session_state.chat_attach)
         st.session_state.show_attach = False
 
+# Display chat messages
+if st.session_state.messages:
+    for i, message in enumerate(st.session_state.messages):
+        content = message["content"] or ""
+        content_html = markdown_to_html(content)
+        safe_html = content_html.replace("\n", "<br>")
+        
+        if message["role"] == "user":
+            st.markdown(
+                f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", 
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                unsafe_allow_html=True
+            )
