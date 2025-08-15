@@ -697,9 +697,7 @@ Current Date: {current_date}"""),
         clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)  # Remove special chars
         st.session_state.speak_text = clean_response
     
-    
     st.session_state.user_input = ""
-    st.rerun()
 
 def toggle_mic():
     st.session_state.is_recording = not st.session_state.get("is_recording", False)
@@ -903,73 +901,70 @@ with st.container():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-
-# ----------- ChatGPT-style Unified Input Bar -----------
+# ----------- Modern Chat Options Bar with Model, Mode, Mic, Attach, Send -----------
 with st.container():
-    # Model & Mode row
-    col_model, col_mode = st.columns([1, 1])
-    with col_model:
+    chat_cols = st.columns([1.5, 1.5, 0.8, 0.8, 3.5, 0.7, 0.7])
+    with chat_cols[0]:
         st.selectbox(
             "Model",
             ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"],
-            index=["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"].index(st.session_state.selected_model),
-            key="selected_model"
+            index=["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"].index(st.session_state.selected_model) if "selected_model" in st.session_state else 0,
+            key="selected_model",
+            label_visibility="collapsed",
+            format_func=lambda x: f"🧠 {x}"
         )
-    with col_mode:
+    with chat_cols[1]:
         st.selectbox(
             "Mode",
             ["Ask", "Chat", "Search"],
             index=0,
-            key="chat_mode"
+            key="chat_mode",
+            label_visibility="collapsed",
+            format_func=lambda x: f"💬 {x}"
         )
-
-    st.markdown('<div class="chat-bar">', unsafe_allow_html=True)
-
-    # Mic button
-    if st.button("🎤", key="mic_btn", help="Voice input", use_container_width=False):
-        st.markdown('''
-        <script>
-        if (window.startRecording && window.stopRecording) {
-            if (!window.isRecording) {
-                window.startRecording();
+    with chat_cols[2]:
+        # Microphone button
+        mic_button_class = "mic-button recording" if st.session_state.get("is_recording", False) else "mic-button"
+        mic_icon = "⏹️" if st.session_state.get("is_recording", False) else "🎤"
+        
+        if st.button(mic_icon, key="mic_btn", help="Click to start/stop voice input"):
+            st.markdown('''
+            <script>
+            if (window.startRecording && window.stopRecording) {
+                if (!window.isRecording) {
+                    window.startRecording();
+                } else {
+                    window.stopRecording();
+                }
             } else {
-                window.stopRecording();
+                alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
             }
-        } else {
-            alert('Speech recognition not supported in this browser.');
-        }
-        </script>
-        ''', unsafe_allow_html=True)
+            </script>
+            ''', unsafe_allow_html=True)
+    
+    with chat_cols[3]:
+        attach_clicked = st.button("📎", key="attach_btn", use_container_width=True)
+        if attach_clicked:
+            st.session_state.show_attach = True
+    with chat_cols[4]:
+        st.text_input(
+            "",
+            key="user_input",
+            placeholder="Type your question or click 🎤 to speak...",
+            label_visibility="collapsed"
+        )
+    with chat_cols[5]:
+        st.button("➤", on_click=on_send, use_container_width=True, key="send_btn")
+    with chat_cols[6]:
+        st.button("⨉", on_click=on_clear, use_container_width=True, key="clear_btn")
 
-    # File uploader
-    files = st.file_uploader(
-        "Upload files",
-        type=["pdf","docx","txt","csv","xls","xlsx"],
-        accept_multiple_files=True,
-        label_visibility="collapsed",
-        key="chat_attach"
-    )
-    if files:
-        process_uploaded_files(files)
-
-    # Text input
-    st.text_input(
-        "Enter your message",
-        key="user_input",
-        placeholder="Type or speak your question, or upload a file...",
-        label_visibility="collapsed"
-    )
-
-    # Send & Clear buttons
-    if st.button("➤", key="send_btn", help="Send message"):
-        on_send()
-    if st.button("⨉", key="clear_btn", help="Clear chat"):
-        on_clear()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+if st.session_state.get("show_attach", False):
+    st.file_uploader("Attach file", type=["pdf","docx","txt","csv","xls","xlsx"], key="chat_attach", accept_multiple_files=True)
+    if st.session_state.get("chat_attach"):
+        process_uploaded_files(st.session_state.chat_attach)
+        st.session_state.show_attach = False
 
 # Display chat messages
-
 if st.session_state.messages:
     for i, message in enumerate(st.session_state.messages):
         content = message["content"] or ""
