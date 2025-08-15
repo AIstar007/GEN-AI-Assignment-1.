@@ -57,7 +57,7 @@ ASSISTANT_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
 
 # CSS Styles
-st.markdown(f"""
+# st.markdown(f"""
     <style>
     .header-card {{ background-color: {PRIMARY}; padding:16px; border-radius:10px; color: white; display:flex; gap:16px; align-items:center; }}
     .chat-user {{
@@ -352,7 +352,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # JavaScript for Web Speech API and Speech Synthesis
-st.markdown("""
+# st.markdown("""
 <script>
 let recognition = null;
 let speechSynthesis = window.speechSynthesis;
@@ -805,7 +805,7 @@ def process_uploaded_files(uploaded_files):
 
     if docs:
         st.session_state.chatbot.add_documents(docs)
-        st.success(f"Indexed {len(docs)} uploaded files.")
+        # st.success(f"Indexed {len(docs)} uploaded files.")
     else:
         st.warning("No content extracted from uploaded files.")
 
@@ -910,12 +910,12 @@ with st.sidebar:
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("#### Generate Summary")
-            summary_topic = st.text_input("Topic (optional):", key="summary_topic", label_visibility="collapsed", placeholder="Summary topic...")
+            summary_topic = :", key="summary_topic", label_visibility="collapsed", placeholder="Summary topic...")
             summary_btn = st.button("Generate Summary", key="summary_btn", use_container_width=True)
             
         with col2:
-            st.markdown("#### Generate Quiz")
-            quiz_topic = st.text_input("Topic (optional):", key="quiz_topic", label_visibility="collapsed", placeholder="Quiz topic...")
+            # st.markdown("#### Generate Quiz")
+            quiz_topic = :", key="quiz_topic", label_visibility="collapsed", placeholder="Quiz topic...")
             quiz_btn = st.button("Generate Quiz", key="quiz_btn", use_container_width=True)
     
     st.markdown("---")
@@ -1070,50 +1070,49 @@ if summary_btn:
     st.session_state.summary_output = summary
 
 if quiz_btn:
-    # Quiz generation logic
-    query = quiz_topic.strip() if quiz_topic.strip() else "quiz"
-    if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
-        docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=st.session_state.get("top_k", 6))
-    else:
-        docs = []
-    context_text = "\n\n".join([d.page_content for d in docs])
-    
-    if st.session_state.chatbot.llm:
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", QUIZ_SYSTEM),
-            ("user", "{question}")
-        ])
-        chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
-        try:
-            quiz_raw = chain.invoke({
-                "question": f"Create a quiz{' on: ' + quiz_topic if quiz_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
-            })
-        except Exception as e:
-            quiz_raw = f"Quiz error: {e}"
-    else:
-        quiz_raw = "LLM not available for quiz."
-    
-    # Parse quiz questions
-    quiz_qs = []
-    if isinstance(quiz_raw, str):
-        pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
-        matches = re.findall(pattern, quiz_raw, re.DOTALL)
-        for i, m in enumerate(matches):
-            quiz_qs.append({
-                "question": m[0].strip(),
-                "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
-                "answer_index": "ABCD".index(m[5].strip())
-            })
-    st.session_state.quiz_questions = quiz_qs[:5]
-    st.session_state.quiz_index = 0
-    st.session_state.quiz_score = 0
-    st.session_state.quiz_done = False
-    st.session_state.quiz_feedback = None
-
+    # # Quiz generation logic
+#     query = quiz_topic.strip() if quiz_topic.strip() else "quiz"
+#     if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+#         docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=st.session_state.get("top_k", 6))
+#     else:
+#         docs = []
+#     context_text = "\n\n".join([d.page_content for d in docs])
+#     
+#     if st.session_state.chatbot.llm:
+#         prompt_template = ChatPromptTemplate.from_messages([
+#             ("system", QUIZ_SYSTEM),
+#             ("user", "{question}")
+#         ])
+#         chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+#         try:
+#             quiz_raw = chain.invoke({
+#                 "question": f"Create a quiz{' on: ' + quiz_topic if quiz_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+#             })
+#         except Exception as e:
+#             quiz_raw = f"Quiz error: {e}"
+#     else:
+#         quiz_raw = "LLM not available for quiz."
+#     
+#     # Parse quiz questions
+#     quiz_qs = []
+#     if isinstance(quiz_raw, str):
+#         pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
+#         matches = re.findall(pattern, quiz_raw, re.DOTALL)
+#         for i, m in enumerate(matches):
+#             quiz_qs.append({
+#                 "question": m[0].strip(),
+#                 "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
+#                 "answer_index": "ABCD".index(m[5].strip())
+#             })
+#     st.session_state.quiz_questions = quiz_qs[:5]
+#     st.session_state.quiz_index = 0
+#     st.session_state.quiz_score = 0
+#     st.session_state.quiz_done = False
+#     st.session_state.quiz_feedback = None
 # Display Summary Output
 if st.session_state.summary_output:
     with st.container():
-        st.markdown("## 📄 Summary")
+        # st.markdown("## 📄 Summary")
         st.markdown(f"<div class='summary-card'>{st.session_state.summary_output}</div>", unsafe_allow_html=True)
         if st.button("Clear Summary"):
             st.session_state.summary_output = None
@@ -1277,12 +1276,7 @@ with st.container():
         if attach_clicked:
             st.session_state.show_attach = True
     with chat_cols[4]:
-        st.text_input(
-            "",
-            key="user_input",
-            placeholder="Type your question or click 🎤 to speak...",
-            label_visibility="collapsed"
-        )
+        
     with chat_cols[5]:
         st.button("➤", on_click=on_send, use_container_width=True, key="send_btn")
     with chat_cols[6]:
@@ -1452,8 +1446,7 @@ updateButtonStates();
 ''', unsafe_allow_html=True)
 
 # Hidden Streamlit input for backend processing
-st.text_input("", key="hidden_user_input", label_visibility="collapsed", 
-              on_change=lambda: on_send() if st.session_state.get("hidden_user_input", "").strip() else None)
+ if st.session_state.get("hidden_user_input", "").strip() else None)
 
 # Auto-speak the latest response if enabled
 if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", False):
