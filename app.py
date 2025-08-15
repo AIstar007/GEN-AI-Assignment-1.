@@ -1,107 +1,4 @@
-.audio-status {{
-        font-size: 12px;
-        color: #666;
-        margin-left: 10px;
-    }}
-    .modern-chat-container {{
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(100% - 40px);
-        max-width: 800px;
-        z-index: 1000;
-    }}
-    .chat-input-bar {{
-        background: #2a2a2a;
-        border: 1px solid #404040;
-        border-radius: 25px;
-        padding: 12px 20px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        backdrop-filter: blur(10px);
-    }}
-    .chat-input {{
-        flex: 1;
-        background: transparent;
-        border: none;
-        color: #fff;
-        font-size: 16px;
-        outline: none;
-        padding: 8px 0;
-    }}
-    .chat-input::placeholder {{
-        color: #888;
-    }}
-    .chat-controls {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }}
-    .control-button {{
-        background: transparent;
-        border: none;
-        color: #aaa;
-        font-size: 18px;
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 50%;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-    }}
-    .control-button:hover {{
-        background: #404040;
-        color: #fff;
-        transform: scale(1.1);
-    }}
-    .control-button.active {{
-        background: #0b93f6;
-        color: #fff;
-    }}
-    .send-button {{
-        background: #0b93f6;
-        border: none;
-        color: #fff;
-        font-size: 16px;
-        cursor: pointer;
-        padding: 10px 16px;
-        border-radius: 20px;
-        transition: all 0.2s;
-        font-weight: 600;
-    }}
-    .send-button:hover {{
-        background: #0a7fd1;
-        transform: translateY(-1px);
-    }}
-    .send-button:disabled {{
-        background: #555;
-        cursor: not-allowed;
-        transform: none;
-    }}
-    .floating-controls {{
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        z-index: 1000;
-    }}
-    .floating-control {{
-        background: #2a2a2a;
-        border: 1px solid #404040;
-        border-radius: 12px;
-        padding: 8px 16px;
-        color: #fff;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s;import os
+import os
 import io
 import csv
 import time
@@ -109,6 +6,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import List
+import re
 
 import pandas as pd
 import PyPDF2
@@ -157,6 +55,8 @@ HEADER_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 ASSISTANT_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 
 st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
+
+# CSS Styles
 st.markdown(f"""
     <style>
     .header-card {{ background-color: {PRIMARY}; padding:16px; border-radius:10px; color: white; display:flex; gap:16px; align-items:center; }}
@@ -247,11 +147,6 @@ st.markdown(f"""
     .mic-button.recording {{
         background: #ff1744;
         animation: pulse 1.5s infinite;
-    }}
-    @keyframes pulse {{
-        0% {{ box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); }}
-        70% {{ box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); }}
-        100% {{ box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }}
     }}
     .audio-controls {{
         display: flex;
@@ -1143,8 +1038,6 @@ st.markdown('''
 </div>
 ''', unsafe_allow_html=True)
 
-import re
-
 def markdown_to_html(text):
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
@@ -1293,6 +1186,43 @@ if st.session_state.quiz_questions:
 
 # Chat Messages Display
 st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
+
+# Audio controls
+with st.container():
+    st.markdown('<div class="audio-controls">', unsafe_allow_html=True)
+    audio_col1, audio_col2, audio_col3 = st.columns([1, 1, 3])
+    
+    with audio_col1:
+        if st.button("🔊 Speak Last", help="Speak the last assistant response"):
+            if st.session_state.messages:
+                last_assistant_msg = None
+                for msg in reversed(st.session_state.messages):
+                    if msg["role"] == "assistant":
+                        last_assistant_msg = msg
+                        break
+                
+                if last_assistant_msg:
+                    clean_text = re.sub(r'\*\*(.+?)\*\*', r'\1', last_assistant_msg["content"])
+                    clean_text = re.sub(r'\*(.+?)\*', r'\1', clean_text)
+                    clean_text = re.sub(r'[#\-\*\[\]()]', '', clean_text)
+                    st.markdown(f'''
+                    <script>
+                    if (window.speakText) {{
+                        window.speakText(`{clean_text.replace("`", "").replace("'", "").replace('"', '')}`);
+                    }}
+                    </script>
+                    ''', unsafe_allow_html=True)
+    
+    with audio_col2:
+        if st.button("⏹️ Stop Audio", help="Stop current speech"):
+            st.markdown('''
+            <script>
+            if (window.stopSpeaking) {
+                window.stopSpeaking();
+            }
+            </script>
+            ''', unsafe_allow_html=True)
+    
     with audio_col3:
         st.markdown('<span class="audio-status">Ready</span>', unsafe_allow_html=True)
     
