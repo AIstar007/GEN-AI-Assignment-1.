@@ -123,7 +123,185 @@ st.markdown(f"""
         font-size: 15px;
         cursor: pointer;
     }}
+    .mic-button {{
+        background: #ff4757;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }}
+    .mic-button:hover {{
+        background: #ff3838;
+        transform: scale(1.1);
+    }}
+    .mic-button.recording {{
+        background: #ff1744;
+        animation: pulse 1.5s infinite;
+    }}
+    @keyframes pulse {{
+        0% {{ box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); }}
+        70% {{ box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }}
+    }}
+    .audio-controls {{
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+    }}
+    .speaker-button {{
+        background: #2ed573;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }}
+    .speaker-button:hover {{
+        background: #26d05f;
+        transform: translateY(-1px);
+    }}
+    .audio-status {{
+        font-size: 12px;
+        color: #666;
+        margin-left: 10px;
+    }}
     </style>
+""", unsafe_allow_html=True)
+
+# JavaScript for Web Speech API and Speech Synthesis
+st.markdown("""
+<script>
+let recognition = null;
+let speechSynthesis = window.speechSynthesis;
+let isRecording = false;
+
+// Initialize Speech Recognition
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        const inputElement = parent.document.querySelector('[data-testid="stTextInput"] input');
+        if (inputElement) {
+            inputElement.value = transcript;
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        stopRecording();
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        stopRecording();
+    };
+    
+    recognition.onend = function() {
+        stopRecording();
+    };
+}
+
+function startRecording() {
+    if (recognition && !isRecording) {
+        isRecording = true;
+        recognition.start();
+        updateMicButton(true);
+    }
+}
+
+function stopRecording() {
+    if (recognition && isRecording) {
+        isRecording = false;
+        recognition.stop();
+        updateMicButton(false);
+    }
+}
+
+function updateMicButton(recording) {
+    const micButton = parent.document.querySelector('.mic-button');
+    if (micButton) {
+        if (recording) {
+            micButton.classList.add('recording');
+            micButton.innerHTML = '⏹️';
+        } else {
+            micButton.classList.remove('recording');
+            micButton.innerHTML = '🎤';
+        }
+    }
+}
+
+function speakText(text) {
+    if (speechSynthesis) {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 0.8;
+        
+        // Try to use a female voice if available
+        const voices = speechSynthesis.getVoices();
+        const femaleVoice = voices.find(voice => 
+            voice.name.toLowerCase().includes('female') || 
+            voice.name.toLowerCase().includes('zira') ||
+            voice.name.toLowerCase().includes('eva') ||
+            voice.gender === 'female'
+        );
+        
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+        }
+        
+        utterance.onstart = function() {
+            updateSpeakerStatus('Speaking...');
+        };
+        
+        utterance.onend = function() {
+            updateSpeakerStatus('Ready');
+        };
+        
+        utterance.onerror = function() {
+            updateSpeakerStatus('Error');
+        };
+        
+        speechSynthesis.speak(utterance);
+    }
+}
+
+function stopSpeaking() {
+    if (speechSynthesis) {
+        speechSynthesis.cancel();
+        updateSpeakerStatus('Stopped');
+    }
+}
+
+function updateSpeakerStatus(status) {
+    const statusElement = parent.document.querySelector('.audio-status');
+    if (statusElement) {
+        statusElement.textContent = status;
+    }
+}
+
+// Make functions available globally
+window.startRecording = startRecording;
+window.stopRecording = stopRecording;
+window.speakText = speakText;
+window.stopSpeaking = stopSpeaking;
+</script>
 """, unsafe_allow_html=True)
 
 QNA_SYSTEM = """
@@ -406,6 +584,10 @@ if "quiz_done" not in st.session_state:
     st.session_state.quiz_done = False
 if "quiz_feedback" not in st.session_state:
     st.session_state.quiz_feedback = None
+if "is_recording" not in st.session_state:
+    st.session_state.is_recording = False
+if "audio_enabled" not in st.session_state:
+    st.session_state.audio_enabled = False
 
 def process_uploaded_files(uploaded_files):
     docs = []
@@ -507,7 +689,21 @@ Current Date: {current_date}"""),
     # Set flag to show streaming effect for the new message
     st.session_state.show_streaming = True
     
+    # Auto-speak the response if audio is enabled
+    if st.session_state.get("audio_enabled", False):
+        # Clean the response for speech (remove markdown and special characters)
+        clean_response = re.sub(r'\*\*(.+?)\*\*', r'\1', resp)  # Remove bold markdown
+        clean_response = re.sub(r'\*(.+?)\*', r'\1', clean_response)  # Remove italic markdown
+        clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)  # Remove special chars
+        st.session_state.speak_text = clean_response
+    
     st.session_state.user_input = ""
+
+def toggle_mic():
+    st.session_state.is_recording = not st.session_state.get("is_recording", False)
+
+def toggle_audio():
+    st.session_state.audio_enabled = not st.session_state.get("audio_enabled", False)
 
 def on_clear():
     st.session_state.messages = []
@@ -687,9 +883,27 @@ if st.session_state.quiz_questions:
                     st.session_state.quiz_done = True
                     st.rerun()
 
-# ----------- Modern Chat Options Bar with Model, Mode, Attach, Send -----------
+# Audio Controls
 with st.container():
-    chat_cols = st.columns([1.5, 1.5, 1, 4, 0.7, 0.7])
+    st.markdown('<div class="audio-controls">', unsafe_allow_html=True)
+    audio_col1, audio_col2, audio_col3, audio_col4 = st.columns([1, 1, 2, 1])
+    
+    with audio_col1:
+        audio_enabled = st.checkbox("🔊 Auto-speak", value=st.session_state.get("audio_enabled", False), key="audio_toggle")
+        st.session_state.audio_enabled = audio_enabled
+    
+    with audio_col2:
+        if st.button("🔇 Stop", key="stop_speaking"):
+            st.markdown('<script>window.stopSpeaking && window.stopSpeaking();</script>', unsafe_allow_html=True)
+    
+    with audio_col3:
+        st.markdown('<span class="audio-status">Ready</span>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ----------- Modern Chat Options Bar with Model, Mode, Mic, Attach, Send -----------
+with st.container():
+    chat_cols = st.columns([1.5, 1.5, 0.8, 0.8, 3.5, 0.7, 0.7])
     with chat_cols[0]:
         st.selectbox(
             "Model",
@@ -709,19 +923,39 @@ with st.container():
             format_func=lambda x: f"💬 {x}"
         )
     with chat_cols[2]:
+        # Microphone button
+        mic_button_class = "mic-button recording" if st.session_state.get("is_recording", False) else "mic-button"
+        mic_icon = "⏹️" if st.session_state.get("is_recording", False) else "🎤"
+        
+        if st.button(mic_icon, key="mic_btn", help="Click to start/stop voice input"):
+            st.markdown('''
+            <script>
+            if (window.startRecording && window.stopRecording) {
+                if (!window.isRecording) {
+                    window.startRecording();
+                } else {
+                    window.stopRecording();
+                }
+            } else {
+                alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+            }
+            </script>
+            ''', unsafe_allow_html=True)
+    
+    with chat_cols[3]:
         attach_clicked = st.button("📎", key="attach_btn", use_container_width=True)
         if attach_clicked:
             st.session_state.show_attach = True
-    with chat_cols[3]:
+    with chat_cols[4]:
         st.text_input(
             "",
             key="user_input",
-            placeholder="Add context (#), extensions (@), commands (/)...",
+            placeholder="Type your question or click 🎤 to speak...",
             label_visibility="collapsed"
         )
-    with chat_cols[4]:
-        st.button("➤", on_click=on_send, use_container_width=True, key="send_btn")
     with chat_cols[5]:
+        st.button("➤", on_click=on_send, use_container_width=True, key="send_btn")
+    with chat_cols[6]:
         st.button("⨉", on_click=on_clear, use_container_width=True, key="clear_btn")
 
 if st.session_state.get("show_attach", False):
@@ -749,7 +983,35 @@ if st.session_state.messages:
                 stream_assistant_text(content, placeholder)
                 st.session_state.show_streaming = False
             else:
-                st.markdown(
-                    f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
-                    unsafe_allow_html=True
-                )
+                # Add speak button for each assistant message
+                col1, col2 = st.columns([0.95, 0.05])
+                with col1:
+                    st.markdown(
+                        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                        unsafe_allow_html=True
+                    )
+                with col2:
+                    if st.button("🔊", key=f"speak_{i}", help="Click to hear this response"):
+                        clean_text = re.sub(r'\*\*(.+?)\*\*', r'\1', content)
+                        clean_text = re.sub(r'\*(.+?)\*', r'\1', clean_text)
+                        clean_text = re.sub(r'[#\-\*\[\]()]', '', clean_text)
+                        st.markdown(f'''
+                        <script>
+                        if (window.speakText) {{
+                            window.speakText(`{clean_text.replace("`", "").replace("'", "").replace('"', '')}`);
+                        }}
+                        </script>
+                        ''', unsafe_allow_html=True)
+
+# Auto-speak the latest response if enabled
+if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", False):
+    st.markdown(f'''
+    <script>
+    if (window.speakText) {{
+        setTimeout(() => {{
+            window.speakText(`{st.session_state.speak_text.replace("`", "").replace("'", "").replace('"', '')}`);
+        }}, 1000);
+    }}
+    </script>
+    ''', unsafe_allow_html=True)
+    del st.session_state.speak_text
