@@ -58,7 +58,7 @@ st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
 
 # CSS Styles
 # st.markdown(f"""
-<style>
+    <style>
     .header-card {{ background-color: {PRIMARY}; padding:16px; border-radius:10px; color: white; display:flex; gap:16px; align-items:center; }}
     .chat-user {{
         background: linear-gradient(90deg, rgba(11,147,246,0.12), rgba(11,147,246,0.08));
@@ -1462,4 +1462,3 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     del st.session_state.speak_text
 
 st.markdown('</div>', unsafe_allow_html=True)  # Close main-content div
-
