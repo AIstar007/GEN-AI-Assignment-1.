@@ -1,6 +1,6 @@
 streamlit
 pandas
-cikit-learn
+scikit-learn
 PyPDF2
 groq
 python-dotenv
@@ -16,3 +16,4 @@ openpyxl
 langchain-core
 pinecone-client
 fitz 
+
