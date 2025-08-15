@@ -1,4 +1,107 @@
-import os
+.audio-status {{
+        font-size: 12px;
+        color: #666;
+        margin-left: 10px;
+    }}
+    .modern-chat-container {{
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 40px);
+        max-width: 800px;
+        z-index: 1000;
+    }}
+    .chat-input-bar {{
+        background: #2a2a2a;
+        border: 1px solid #404040;
+        border-radius: 25px;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+    }}
+    .chat-input {{
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 16px;
+        outline: none;
+        padding: 8px 0;
+    }}
+    .chat-input::placeholder {{
+        color: #888;
+    }}
+    .chat-controls {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }}
+    .control-button {{
+        background: transparent;
+        border: none;
+        color: #aaa;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+    }}
+    .control-button:hover {{
+        background: #404040;
+        color: #fff;
+        transform: scale(1.1);
+    }}
+    .control-button.active {{
+        background: #0b93f6;
+        color: #fff;
+    }}
+    .send-button {{
+        background: #0b93f6;
+        border: none;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 10px 16px;
+        border-radius: 20px;
+        transition: all 0.2s;
+        font-weight: 600;
+    }}
+    .send-button:hover {{
+        background: #0a7fd1;
+        transform: translateY(-1px);
+    }}
+    .send-button:disabled {{
+        background: #555;
+        cursor: not-allowed;
+        transform: none;
+    }}
+    .floating-controls {{
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1000;
+    }}
+    .floating-control {{
+        background: #2a2a2a;
+        border: 1px solid #404040;
+        border-radius: 12px;
+        padding: 8px 16px;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;import os
 import io
 import csv
 import time
@@ -174,6 +277,181 @@ st.markdown(f"""
         font-size: 12px;
         color: #666;
         margin-left: 10px;
+    }}
+    .modern-chat-container {{
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 40px);
+        max-width: 800px;
+        z-index: 1000;
+    }}
+    .chat-input-bar {{
+        background: #2a2a2a;
+        border: 1px solid #404040;
+        border-radius: 25px;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+    }}
+    .chat-input {{
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 16px;
+        outline: none;
+        padding: 8px 0;
+    }}
+    .chat-input::placeholder {{
+        color: #888;
+    }}
+    .chat-controls {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }}
+    .control-button {{
+        background: transparent;
+        border: none;
+        color: #aaa;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+    }}
+    .control-button:hover {{
+        background: #404040;
+        color: #fff;
+        transform: scale(1.1);
+    }}
+    .control-button.active {{
+        background: #0b93f6;
+        color: #fff;
+    }}
+    .control-button.recording {{
+        background: #ff4757;
+        color: #fff;
+        animation: pulse 1.5s infinite;
+    }}
+    .send-button {{
+        background: #0b93f6;
+        border: none;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 10px 16px;
+        border-radius: 20px;
+        transition: all 0.2s;
+        font-weight: 600;
+    }}
+    .send-button:hover {{
+        background: #0a7fd1;
+        transform: translateY(-1px);
+    }}
+    .send-button:disabled {{
+        background: #555;
+        cursor: not-allowed;
+        transform: none;
+    }}
+    .floating-controls {{
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1000;
+    }}
+    .floating-control {{
+        background: #2a2a2a;
+        border: 1px solid #404040;
+        border-radius: 12px;
+        padding: 8px 16px;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }}
+    .floating-control:hover {{
+        background: #404040;
+        transform: translateY(-1px);
+    }}
+    .floating-control.active {{
+        background: #0b93f6;
+        border-color: #0b93f6;
+    }}
+    .model-selector {{
+        background: #2a2a2a;
+        border: 1px solid #404040;
+        border-radius: 12px;
+        padding: 8px 16px;
+        color: #fff;
+        font-size: 14px;
+        min-width: 140px;
+    }}
+    .sidebar {{
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 300px;
+        background: #1a1a1a;
+        padding: 20px;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        z-index: 999;
+    }}
+    .main-content {{
+        margin-left: 300px;
+        padding: 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+    }}
+    .developer-panel {{
+        background: #2a2a2a;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+        border: 1px solid #404040;
+    }}
+    .setting-group {{
+        margin-bottom: 16px;
+    }}
+    .setting-label {{
+        color: #ccc;
+        font-size: 13px;
+        margin-bottom: 6px;
+        display: block;
+    }}
+    .setting-control {{
+        width: 100%;
+        background: #1a1a1a;
+        border: 1px solid #404040;
+        border-radius: 6px;
+        padding: 8px 12px;
+        color: #fff;
+        font-size: 14px;
+    }}
+    .chat-messages {{
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+        padding-bottom: 100px;
+    }}
+    @keyframes pulse {{
+        0% {{ box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }}
+        70% {{ box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }}
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -586,8 +864,17 @@ if "quiz_feedback" not in st.session_state:
     st.session_state.quiz_feedback = None
 if "is_recording" not in st.session_state:
     st.session_state.is_recording = False
-if "audio_enabled" not in st.session_state:
-    st.session_state.audio_enabled = False
+# Initialize additional session state variables
+if "show_developer_panel" not in st.session_state:
+    st.session_state.show_developer_panel = False
+if "top_k" not in st.session_state:
+    st.session_state.top_k = 3
+if "max_tokens" not in st.session_state:
+    st.session_state.max_tokens = 1000
+if "frequency_penalty" not in st.session_state:
+    st.session_state.frequency_penalty = 0.0
+if "presence_penalty" not in st.session_state:
+    st.session_state.presence_penalty = 0.0
 
 def process_uploaded_files(uploaded_files):
     docs = []
@@ -645,15 +932,17 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
     )
 
 def on_send():
-    text = st.session_state.user_input.strip()
+    # Get text from hidden input
+    text = st.session_state.get("hidden_user_input", "").strip()
     if not text:
-        st.warning("Please enter a message.")
         return
+    
     st.session_state.messages.append({
         "role": "user",
         "content": text,
         "timestamp": datetime.now().strftime("%H:%M:%S")
     })
+    
     try:
         st.session_state.chatbot.llm = ChatGroq(
             groq_api_key=GROQ_API_KEY,
@@ -697,7 +986,8 @@ Current Date: {current_date}"""),
         clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)  # Remove special chars
         st.session_state.speak_text = clean_response
     
-    st.session_state.user_input = ""
+    # Clear the hidden input
+    st.session_state.hidden_user_input = ""
 
 def toggle_mic():
     st.session_state.is_recording = not st.session_state.get("is_recording", False)
@@ -709,40 +999,149 @@ def on_clear():
     st.session_state.messages = []
     st.session_state.chatbot.conversation_history = []
 
+# Modern Sidebar with Developer Settings
 with st.sidebar:
-    st.image(HEADER_LOGO_URL, width=80)
-    st.title("SAP Ariba RAG Chatbot")
-    uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
+    # Header
+    st.markdown("""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png" width="60" style="margin-bottom: 10px;">
+            <h2 style="color: #fff; margin: 0;">SAP Ariba RAG</h2>
+            <p style="color: #888; font-size: 14px; margin: 5px 0 0 0;">AI Assistant</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Summary & Quiz Tools
+    with st.expander("📄 Summary & Quiz Tools", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Generate Summary")
+            summary_topic = st.text_input("Topic (optional):", key="summary_topic", label_visibility="collapsed", placeholder="Summary topic...")
+            summary_btn = st.button("Generate Summary", key="summary_btn", use_container_width=True)
+            
+        with col2:
+            st.markdown("#### Generate Quiz")
+            quiz_topic = st.text_input("Topic (optional):", key="quiz_topic", label_visibility="collapsed", placeholder="Quiz topic...")
+            quiz_btn = st.button("Generate Quiz", key="quiz_btn", use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Developer Settings Panel
+    st.markdown("### ⚙️ Developer Settings")
+    
+    with st.container():
+        # Model Selection
+        st.selectbox(
+            "🧠 Model",
+            ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192", "llama3-70b-8192"],
+            key="selected_model",
+            help="Select the AI model to use"
+        )
+        
+        # Temperature
+        st.slider(
+            "🌡️ Temperature", 
+            0.0, 2.0, 
+            st.session_state.get("temperature", 0.1), 
+            0.1,
+            key="temperature",
+            help="Controls randomness in responses. Higher = more creative, Lower = more focused"
+        )
+        
+        # Max Tokens
+        st.slider(
+            "📝 Max Tokens", 
+            100, 4000, 
+            st.session_state.get("max_tokens", 1000), 
+            100,
+            key="max_tokens",
+            help="Maximum length of the response"
+        )
+        
+        # Top K
+        st.slider(
+            "🔝 Top K (Retrieval)", 
+            1, 10, 
+            st.session_state.get("top_k", 3), 
+            1,
+            key="top_k",
+            help="Number of relevant documents to retrieve"
+        )
+        
+        # Frequency Penalty
+        st.slider(
+            "🔄 Frequency Penalty", 
+            0.0, 2.0, 
+            st.session_state.get("frequency_penalty", 0.0), 
+            0.1,
+            key="frequency_penalty",
+            help="Reduces repetition of tokens"
+        )
+        
+        # Presence Penalty
+        st.slider(
+            "📊 Presence Penalty", 
+            0.0, 2.0, 
+            st.session_state.get("presence_penalty", 0.0), 
+            0.1,
+            key="presence_penalty",
+            help="Encourages talking about new topics"
+        )
+    
+    st.markdown("---")
+    
+    # Upload Section (Simplified)
+    st.markdown("### 📁 Document Upload")
+    uploaded_files = st.file_uploader(
+        "Drop files here", 
+        accept_multiple_files=True, 
+        type=["pdf","docx","txt","csv","xls","xlsx"],
+        label_visibility="collapsed"
+    )
+    
     if uploaded_files:
-        if st.button("Process & Index Uploaded Files"):
+        if st.button("📤 Process Files", use_container_width=True):
             process_uploaded_files(uploaded_files)
+    
     st.markdown("---")
-    st.subheader("LLM Settings")
-    st.session_state.temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.temperature, key="temperature_slider")
-    st.session_state.selected_model = st.selectbox("Model", ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"], index=0, key="model_select")
-    st.markdown("---")
-    st.subheader("Diagnostics")
+    
+    # Status Indicators
+    st.markdown("### 📊 Status")
     if EMBEDDINGS_OK:
-        st.success("Embeddings (HuggingFace) available")
+        st.success("✅ Embeddings Ready")
     else:
-        st.warning("Embeddings not available — using TF-IDF fallback")
+        st.warning("⚠️ Using TF-IDF Fallback")
+    
     if PINECONE_OK:
-        st.success("Pinecone available")
+        st.success("✅ Pinecone Connected")
     else:
-        st.info("Pinecone not available — using TF-IDF fallback store")
-    st.markdown("<div class='footer'>Made with ❤️ using Streamlit & LangChain</div>", unsafe_allow_html=True)
+        st.info("ℹ️ Using Local Storage")
+    
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        "<div style='text-align: center; color: #666; font-size: 12px;'>Made with ❤️ using Streamlit & LangChain</div>", 
+        unsafe_allow_html=True
+    )
 
+# Main content area
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
+# Header
 st.markdown(f"""
-    <div class="header-card">
-        <div style="flex-shrink:0;">
-            <img src="{HEADER_LOGO_URL}" class="icon-left"/>
-        </div>
-        <div>
-            <h1 style="color:white;margin:0;">SAP Ariba RAG Chatbot</h1>
-            <p style="color:#f0f0f0;margin:4px 0 0 0;">Your SAP Ariba expert assistant — upload documents, ask questions, summarize, and quiz yourself.</p>
-        </div>
+    <div style="text-align: center; margin-bottom: 30px;">
+        <img src="{HEADER_LOGO_URL}" width="60" style="margin-bottom: 15px;">
+        <h1 style="color:#fff;margin:10px 0;">SAP Ariba RAG Chatbot</h1>
+        <p style="color:#888;margin:0;">Your intelligent SAP Ariba assistant — upload documents, ask questions, and get expert insights.</p>
     </div>
 """, unsafe_allow_html=True)
+
+# Floating Controls (Top Right)
+st.markdown('''
+<div class="floating-controls">
+    <div class="floating-control active" title="Current Model">🧠 ''' + st.session_state.get("selected_model", "gemma2-9b-it") + '''</div>
+    <div class="floating-control" title="Voice Assistant">🔊 Audio: ''' + ("On" if st.session_state.get("audio_enabled", False) else "Off") + '''</div>
+</div>
+''', unsafe_allow_html=True)
 
 import re
 
@@ -751,151 +1150,149 @@ def markdown_to_html(text):
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
     return text
 
-# Summary & Quiz UI Panel - Added before chat interface
-with st.expander("📄 Summary & Quiz Tools", expanded=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("#### Generate Summary")
-        summary_topic = st.text_input("Summarize a specific topic (optional):", key="summary_topic")
-        summary_btn = st.button("Generate Summary", key="summary_btn")
-        if summary_btn:
-            # Retrieve relevant docs
-            query = summary_topic.strip() if summary_topic.strip() else "summarize documents"
-            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
-                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
-            else:
-                docs = []
-            context_text = "\n\n".join([d.page_content for d in docs])
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            # Use summary prompt
-            if st.session_state.chatbot.llm:
-                prompt_template = ChatPromptTemplate.from_messages([
-                    ("system", SUMMARY_SYSTEM),
-                    ("user", "{question}")
-                ])
-                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
-                try:
-                    summary = chain.invoke({
-                        "question": f"Summarize{' the topic: ' + summary_topic if summary_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
-                    })
-                except Exception as e:
-                    summary = f"Summary error: {e}"
-            else:
-                summary = "LLM not available for summary."
-            st.session_state.summary_output = summary
+# Handle Summary and Quiz Generation
+if summary_btn:
+    # Summary generation logic
+    query = summary_topic.strip() if summary_topic.strip() else "summarize documents"
+    if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+        docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=st.session_state.get("top_k", 6))
+    else:
+        docs = []
+    context_text = "\n\n".join([d.page_content for d in docs])
+    
+    if st.session_state.chatbot.llm:
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", SUMMARY_SYSTEM),
+            ("user", "{question}")
+        ])
+        chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+        try:
+            summary = chain.invoke({
+                "question": f"Summarize{' the topic: ' + summary_topic if summary_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+            })
+        except Exception as e:
+            summary = f"Summary error: {e}"
+    else:
+        summary = "LLM not available for summary."
+    st.session_state.summary_output = summary
 
-        if st.session_state.summary_output:
-            st.markdown(f"<div class='summary-card'>{st.session_state.summary_output}</div>", unsafe_allow_html=True)
+if quiz_btn:
+    # Quiz generation logic
+    query = quiz_topic.strip() if quiz_topic.strip() else "quiz"
+    if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+        docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=st.session_state.get("top_k", 6))
+    else:
+        docs = []
+    context_text = "\n\n".join([d.page_content for d in docs])
+    
+    if st.session_state.chatbot.llm:
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", QUIZ_SYSTEM),
+            ("user", "{question}")
+        ])
+        chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+        try:
+            quiz_raw = chain.invoke({
+                "question": f"Create a quiz{' on: ' + quiz_topic if quiz_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+            })
+        except Exception as e:
+            quiz_raw = f"Quiz error: {e}"
+    else:
+        quiz_raw = "LLM not available for quiz."
+    
+    # Parse quiz questions
+    quiz_qs = []
+    if isinstance(quiz_raw, str):
+        pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
+        matches = re.findall(pattern, quiz_raw, re.DOTALL)
+        for i, m in enumerate(matches):
+            quiz_qs.append({
+                "question": m[0].strip(),
+                "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
+                "answer_index": "ABCD".index(m[5].strip())
+            })
+    st.session_state.quiz_questions = quiz_qs[:5]
+    st.session_state.quiz_index = 0
+    st.session_state.quiz_score = 0
+    st.session_state.quiz_done = False
+    st.session_state.quiz_feedback = None
 
-    with col2:
-        st.markdown("#### Generate Quiz")
-        quiz_topic = st.text_input("Quiz on topic (optional):", key="quiz_topic")
-        quiz_btn = st.button("Generate Quiz", key="quiz_btn")
-        if quiz_btn:
-            # Retrieve relevant docs
-            query = quiz_topic.strip() if quiz_topic.strip() else "quiz"
-            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
-                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
-            else:
-                docs = []
-            context_text = "\n\n".join([d.page_content for d in docs])
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            # Use quiz prompt
-            if st.session_state.chatbot.llm:
-                prompt_template = ChatPromptTemplate.from_messages([
-                    ("system", QUIZ_SYSTEM),
-                    ("user", "{question}")
-                ])
-                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
-                try:
-                    quiz_raw = chain.invoke({
-                        "question": f"Create a quiz{' on: ' + quiz_topic if quiz_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
-                    })
-                except Exception as e:
-                    quiz_raw = f"Quiz error: {e}"
-            else:
-                quiz_raw = "LLM not available for quiz."
-            # Parse quiz questions
-            import re
-            quiz_qs = []
-            if isinstance(quiz_raw, str):
-                pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
-                matches = re.findall(pattern, quiz_raw, re.DOTALL)
-                for i, m in enumerate(matches):
-                    quiz_qs.append({
-                        "question": m[0].strip(),
-                        "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
-                        "answer_index": "ABCD".index(m[5].strip())
-                    })
-            st.session_state.quiz_questions = quiz_qs[:5]
-            st.session_state.quiz_index = 0
-            st.session_state.quiz_score = 0
-            st.session_state.quiz_done = False
-            st.session_state.quiz_feedback = None
+# Display Summary Output
+if st.session_state.summary_output:
+    with st.container():
+        st.markdown("## 📄 Summary")
+        st.markdown(f"<div class='summary-card'>{st.session_state.summary_output}</div>", unsafe_allow_html=True)
+        if st.button("Clear Summary"):
+            st.session_state.summary_output = None
+            st.rerun()
 
-# Quiz Runner UI - Added before chat interface
+# Display Quiz
 if st.session_state.quiz_questions:
     questions = st.session_state.quiz_questions
     idx = st.session_state.quiz_index
     total = len(questions)
-    st.markdown("---")
-    st.header("📝 Quiz")
+    
+    st.markdown("## 📝 Quiz")
     if st.session_state.quiz_done:
-        st.success(f"Quiz completed! Your score: {st.session_state.quiz_score} / {total}")
-        if st.button("Restart Quiz"):
-            st.session_state.quiz_index = 0
-            st.session_state.quiz_score = 0
-            st.session_state.quiz_done = False
-            st.session_state.quiz_feedback = None
-            st.rerun()
+        st.success(f"🎉 Quiz completed! Your score: **{st.session_state.quiz_score}/{total}**")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Restart Quiz", use_container_width=True):
+                st.session_state.quiz_index = 0
+                st.session_state.quiz_score = 0
+                st.session_state.quiz_done = False
+                st.session_state.quiz_feedback = None
+                st.rerun()
+        with col2:
+            if st.button("❌ Close Quiz", use_container_width=True):
+                st.session_state.quiz_questions = None
+                st.rerun()
     else:
         q = questions[idx]
-        st.markdown(f"**Question {idx+1} of {total}:**")
-        st.write(q['question'])
-        choice_key = f"quiz_choice_{idx}"
-        selected = st.radio("Select an option:", q['options'], key=choice_key)
-        submit_key = f"submit_{idx}"
-        if st.button("Submit Answer", key=submit_key):
-            sel_index = q['options'].index(selected)
-            correct_index = int(q.get('answer_index', 0))
-            if sel_index == correct_index:
-                st.session_state.quiz_feedback = {"correct": True, "message": "Correct ✅"}
-                st.session_state.quiz_score += 1
-            else:
-                st.session_state.quiz_feedback = {
-                    "correct": False,
-                    "message": f"Wrong ❌  | Correct: Option {correct_index+1}: {q['options'][correct_index]}"
-                }
-            st.rerun()
+        
+        # Progress bar
+        progress = (idx + 1) / total
+        st.progress(progress, text=f"Question {idx+1} of {total}")
+        
+        st.markdown(f"### {q['question']}")
+        
+        selected = st.radio("Select your answer:", q['options'], key=f"quiz_choice_{idx}")
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button("Submit Answer", key=f"submit_{idx}", use_container_width=True):
+                sel_index = q['options'].index(selected)
+                correct_index = int(q.get('answer_index', 0))
+                if sel_index == correct_index:
+                    st.session_state.quiz_feedback = {"correct": True, "message": "✅ Correct!"}
+                    st.session_state.quiz_score += 1
+                else:
+                    st.session_state.quiz_feedback = {
+                        "correct": False,
+                        "message": f"❌ Wrong! Correct answer: {q['options'][correct_index]}"
+                    }
+                st.rerun()
+        
+        # Show feedback
         fb = st.session_state.get('quiz_feedback')
         if fb:
             if fb.get('correct'):
                 st.success(fb.get('message'))
             else:
                 st.error(fb.get('message'))
+            
             if idx + 1 < total:
-                if st.button("Next Question"):
+                if st.button("Next Question ➡️", use_container_width=True):
                     st.session_state.quiz_index += 1
                     st.session_state.quiz_feedback = None
                     st.rerun()
             else:
-                if st.button("Finish Quiz"):
+                if st.button("Finish Quiz 🏁", use_container_width=True):
                     st.session_state.quiz_done = True
                     st.rerun()
 
-# Audio Controls
-with st.container():
-    st.markdown('<div class="audio-controls">', unsafe_allow_html=True)
-    audio_col1, audio_col2, audio_col3, audio_col4 = st.columns([1, 1, 2, 1])
-    
-    with audio_col1:
-        audio_enabled = st.checkbox("🔊 Auto-speak", value=st.session_state.get("audio_enabled", False), key="audio_toggle")
-        st.session_state.audio_enabled = audio_enabled
-    
-    with audio_col2:
-        if st.button("🔇 Stop", key="stop_speaking"):
-            st.markdown('<script>window.stopSpeaking && window.stopSpeaking();</script>', unsafe_allow_html=True)
-    
+# Chat Messages Display
+st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
     with audio_col3:
         st.markdown('<span class="audio-status">Ready</span>', unsafe_allow_html=True)
     
@@ -1003,6 +1400,128 @@ if st.session_state.messages:
                         </script>
                         ''', unsafe_allow_html=True)
 
+st.markdown('</div>', unsafe_allow_html=True)  # Close chat-messages div
+
+# Modern ChatGPT-style Input Bar (Fixed at bottom)
+st.markdown('''
+<div class="modern-chat-container">
+    <div class="chat-input-bar">
+        <div class="chat-controls">
+            <button class="control-button" onclick="toggleAudio()" title="Toggle Auto-speak" id="audio-btn">
+                🔊
+            </button>
+            <button class="control-button" onclick="startRecording()" title="Voice Input" id="mic-btn">
+                🎤
+            </button>
+            <button class="control-button" onclick="toggleAttach()" title="Attach Files" id="attach-btn">
+                📎
+            </button>
+        </div>
+        <input class="chat-input" placeholder="Ask me anything about SAP Ariba..." id="chat-input" />
+        <button class="send-button" onclick="sendMessage()" id="send-btn">
+            Send
+        </button>
+    </div>
+</div>
+
+<script>
+// Global state
+let audioEnabled = false;
+let isRecording = false;
+let attachMenuOpen = false;
+
+// Update button states
+function updateButtonStates() {
+    const audioBtn = document.getElementById('audio-btn');
+    const micBtn = document.getElementById('mic-btn');
+    
+    if (audioBtn) {
+        audioBtn.className = audioEnabled ? 'control-button active' : 'control-button';
+        audioBtn.innerHTML = audioEnabled ? '🔊' : '🔇';
+    }
+    
+    if (micBtn) {
+        micBtn.className = isRecording ? 'control-button recording' : 'control-button';
+        micBtn.innerHTML = isRecording ? '⏹️' : '🎤';
+    }
+}
+
+// Toggle audio
+function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    updateButtonStates();
+    // Update Streamlit state
+    const stCheckbox = parent.document.querySelector('[data-testid="stCheckbox"]');
+    if (stCheckbox) {
+        stCheckbox.click();
+    }
+}
+
+// Send message function
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    
+    if (input && input.value.trim()) {
+        // Update Streamlit input
+        const stInput = parent.document.querySelector('[data-testid="stTextInput"] input');
+        if (stInput) {
+            stInput.value = input.value;
+            stInput.dispatchEvent(new Event('input', { bubbles: true }));
+            stInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Trigger send button in Streamlit
+        const stSendBtn = parent.document.querySelector('[data-testid="baseButton-secondary"]');
+        if (stSendBtn) {
+            stSendBtn.click();
+        }
+        
+        // Clear input
+        input.value = '';
+        sendBtn.disabled = true;
+        setTimeout(() => { sendBtn.disabled = false; }, 2000);
+    }
+}
+
+// Handle Enter key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('chat-input') === document.activeElement) {
+        sendMessage();
+    }
+});
+
+// Override global recording functions
+function startRecording() {
+    if (window.parent.startRecording) {
+        isRecording = !isRecording;
+        updateButtonStates();
+        if (isRecording) {
+            window.parent.startRecording();
+        } else {
+            window.parent.stopRecording();
+        }
+    }
+}
+
+// File attachment
+function toggleAttach() {
+    attachMenuOpen = !attachMenuOpen;
+    const stFileUploader = parent.document.querySelector('[data-testid="stFileUploader"]');
+    if (stFileUploader) {
+        stFileUploader.style.display = attachMenuOpen ? 'block' : 'none';
+    }
+}
+
+// Initialize
+updateButtonStates();
+</script>
+''', unsafe_allow_html=True)
+
+# Hidden Streamlit input for backend processing
+st.text_input("", key="hidden_user_input", label_visibility="collapsed", 
+              on_change=lambda: on_send() if st.session_state.get("hidden_user_input", "").strip() else None)
+
 # Auto-speak the latest response if enabled
 if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", False):
     st.markdown(f'''
@@ -1015,3 +1534,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
+st.markdown('</div>', unsafe_allow_html=True)  # Close main-content div
