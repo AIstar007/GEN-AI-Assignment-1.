@@ -44,6 +44,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from langchain.schema import Document
 from langchain.memory import ConversationBufferWindowMemory
+import re
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -649,19 +650,49 @@ def on_send():
     if not text:
         st.warning("Please enter a message.")
         return
+
+    # Save user message
     st.session_state.messages.append({
         "role": "user",
         "content": text,
         "timestamp": datetime.now().strftime("%H:%M:%S")
     })
+
     try:
-        st.session_state.chatbot.llm = ChatGroq(
+        # Create LLM for selected mode
+        llm = ChatGroq(
             groq_api_key=GROQ_API_KEY,
             model_name=st.session_state.get("selected_model", "gemma2-9b-it"),
-            temperature=st.session_state.get("temperature", 0.1)
+            temperature=st.session_state.get("temperature", 0.7 if st.session_state.chat_mode == "General" else 0.1)
         )
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", QNA_SYSTEM + """
+    except Exception:
+        llm = None
+
+    with st.spinner("Generating answer..."):
+        if st.session_state.chat_mode == "General":
+            # General ChatGPT-like mode
+            if llm:
+                if "general_memory" not in st.session_state:
+                    st.session_state.general_memory = ConversationBufferWindowMemory(k=10, return_messages=True)
+
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", "You are a helpful, knowledgeable, and friendly assistant. Answer naturally and conversationally."),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | llm | StrOutputParser()
+                try:
+                    resp = chain.invoke({"question": text})
+                except Exception as e:
+                    resp = f"General mode error: {e}"
+            else:
+                resp = "LLM not available — please set GROQ_API_KEY."
+        
+        else:
+            # Original RAG mode
+            try:
+                st.session_state.chatbot.llm = llm
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", QNA_SYSTEM + """
 
 CONTEXT INFORMATION:
 {context}
@@ -670,33 +701,32 @@ CONVERSATION HISTORY:
 {chat_history}
 
 Current Date: {current_date}"""),
-            ("user", "{question}")
-        ])
-        st.session_state.chatbot.chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
-    except Exception:
-        pass
+                    ("user", "{question}")
+                ])
+                st.session_state.chatbot.chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+            except Exception:
+                pass
 
-    with st.spinner("Generating answer..."):
-        resp = st.session_state.chatbot.chat(text)
+            resp = st.session_state.chatbot.chat(text)
 
-    # Add the assistant response to messages
+    # Save assistant message
     st.session_state.messages.append({
         "role": "assistant",
         "content": resp,
         "timestamp": datetime.now().strftime("%H:%M:%S")
     })
-    
-    # Set flag to show streaming effect for the new message
+
+    # Trigger streaming effect
     st.session_state.show_streaming = True
-    
-    # Auto-speak the response if audio is enabled
+
+    # Auto-speak if enabled
     if st.session_state.get("audio_enabled", False):
-        # Clean the response for speech (remove markdown and special characters)
-        clean_response = re.sub(r'\*\*(.+?)\*\*', r'\1', resp)  # Remove bold markdown
-        clean_response = re.sub(r'\*(.+?)\*', r'\1', clean_response)  # Remove italic markdown
-        clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)  # Remove special chars
+        clean_response = re.sub(r'\*\*(.+?)\*\*', r'\1', resp)
+        clean_response = re.sub(r'\*(.+?)\*', r'\1', clean_response)
+        clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)
         st.session_state.speak_text = clean_response
-    
+
+    # Reset input
     st.session_state.user_input = ""
 
 def toggle_mic():
@@ -1015,3 +1045,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
