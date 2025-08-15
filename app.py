@@ -946,17 +946,15 @@ with st.container():
     with chat_cols[1]:
         st.selectbox(
             "Mode",
-            ["Ask", "Chat", "Search"],
-            index=0,
+            ["Ask", "Chat", "Search", "General"],  # ✅ Added General mode
+            index=["Ask", "Chat", "Search", "General"].index(st.session_state.get("chat_mode", "Ask")),
             key="chat_mode",
             label_visibility="collapsed",
             format_func=lambda x: f"💬 {x}"
         )
     with chat_cols[2]:
-        # Microphone button
         mic_button_class = "mic-button recording" if st.session_state.get("is_recording", False) else "mic-button"
         mic_icon = "⏹️" if st.session_state.get("is_recording", False) else "🎤"
-        
         if st.button(mic_icon, key="mic_btn", help="Click to start/stop voice input"):
             st.markdown('''
             <script>
@@ -971,7 +969,6 @@ with st.container():
             }
             </script>
             ''', unsafe_allow_html=True)
-    
     with chat_cols[3]:
         attach_clicked = st.button("📎", key="attach_btn", use_container_width=True)
         if attach_clicked:
@@ -1045,4 +1042,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
