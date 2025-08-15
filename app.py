@@ -6,7 +6,6 @@ import streamlit as st
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import List
-import re
 
 import pandas as pd
 import PyPDF2
@@ -22,8 +21,7 @@ try:
     from langchain_community.embeddings import HuggingFaceEmbeddings
     HUGGINGFACE_EMBEDDINGS = HuggingFaceEmbeddings
     EMBEDDINGS_OK = True
-except Exception as e:
-    print(f"Embeddings import error: {e}")
+except Exception:
     EMBEDDINGS_OK = False
 
 try:
@@ -37,8 +35,7 @@ try:
         PINECONE_OK = True
     else:
         PINECONE_OK = False
-except Exception as e:
-    print(f"Pinecone import error: {e}")
+except Exception:
     PINECONE_OK = False
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -47,10 +44,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from langchain.schema import Document
 from langchain.memory import ConversationBufferWindowMemory
-
-# Fix: Added missing import
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -61,8 +54,6 @@ HEADER_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 ASSISTANT_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 
 st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
-
-# CSS Styles
 st.markdown(f"""
     <style>
     .header-card {{ background-color: {PRIMARY}; padding:16px; border-radius:10px; color: white; display:flex; gap:16px; align-items:center; }}
@@ -132,7 +123,185 @@ st.markdown(f"""
         font-size: 15px;
         cursor: pointer;
     }}
+    .mic-button {{
+        background: #ff4757;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }}
+    .mic-button:hover {{
+        background: #ff3838;
+        transform: scale(1.1);
+    }}
+    .mic-button.recording {{
+        background: #ff1744;
+        animation: pulse 1.5s infinite;
+    }}
+    @keyframes pulse {{
+        0% {{ box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); }}
+        70% {{ box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }}
+    }}
+    .audio-controls {{
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+    }}
+    .speaker-button {{
+        background: #2ed573;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }}
+    .speaker-button:hover {{
+        background: #26d05f;
+        transform: translateY(-1px);
+    }}
+    .audio-status {{
+        font-size: 12px;
+        color: #666;
+        margin-left: 10px;
+    }}
     </style>
+""", unsafe_allow_html=True)
+
+# JavaScript for Web Speech API and Speech Synthesis
+st.markdown("""
+<script>
+let recognition = null;
+let speechSynthesis = window.speechSynthesis;
+let isRecording = false;
+
+// Initialize Speech Recognition
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        const inputElement = parent.document.querySelector('[data-testid="stTextInput"] input');
+        if (inputElement) {
+            inputElement.value = transcript;
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        stopRecording();
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        stopRecording();
+    };
+    
+    recognition.onend = function() {
+        stopRecording();
+    };
+}
+
+function startRecording() {
+    if (recognition && !isRecording) {
+        isRecording = true;
+        recognition.start();
+        updateMicButton(true);
+    }
+}
+
+function stopRecording() {
+    if (recognition && isRecording) {
+        isRecording = false;
+        recognition.stop();
+        updateMicButton(false);
+    }
+}
+
+function updateMicButton(recording) {
+    const micButton = parent.document.querySelector('.mic-button');
+    if (micButton) {
+        if (recording) {
+            micButton.classList.add('recording');
+            micButton.innerHTML = '⏹️';
+        } else {
+            micButton.classList.remove('recording');
+            micButton.innerHTML = '🎤';
+        }
+    }
+}
+
+function speakText(text) {
+    if (speechSynthesis) {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 0.8;
+        
+        // Try to use a female voice if available
+        const voices = speechSynthesis.getVoices();
+        const femaleVoice = voices.find(voice => 
+            voice.name.toLowerCase().includes('female') || 
+            voice.name.toLowerCase().includes('zira') ||
+            voice.name.toLowerCase().includes('eva') ||
+            voice.gender === 'female'
+        );
+        
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+        }
+        
+        utterance.onstart = function() {
+            updateSpeakerStatus('Speaking...');
+        };
+        
+        utterance.onend = function() {
+            updateSpeakerStatus('Ready');
+        };
+        
+        utterance.onerror = function() {
+            updateSpeakerStatus('Error');
+        };
+        
+        speechSynthesis.speak(utterance);
+    }
+}
+
+function stopSpeaking() {
+    if (speechSynthesis) {
+        speechSynthesis.cancel();
+        updateSpeakerStatus('Stopped');
+    }
+}
+
+function updateSpeakerStatus(status) {
+    const statusElement = parent.document.querySelector('.audio-status');
+    if (statusElement) {
+        statusElement.textContent = status;
+    }
+}
+
+// Make functions available globally
+window.startRecording = startRecording;
+window.stopRecording = stopRecording;
+window.speakText = speakText;
+window.stopSpeaking = stopSpeaking;
+</script>
 """, unsafe_allow_html=True)
 
 QNA_SYSTEM = """
@@ -224,6 +393,8 @@ def extract_text_from_docx(uploaded_file) -> str:
     except Exception:
         return ""
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 class TFIDFWrapper:
     def __init__(self):
         self.texts = []
@@ -413,71 +584,437 @@ if "quiz_done" not in st.session_state:
     st.session_state.quiz_done = False
 if "quiz_feedback" not in st.session_state:
     st.session_state.quiz_feedback = None
+if "is_recording" not in st.session_state:
+    st.session_state.is_recording = False
+if "audio_enabled" not in st.session_state:
+    st.session_state.audio_enabled = False
 
-# Main app
-st.title("SAP Ariba RAG Chatbot")
-st.write("Upload documents and ask questions about SAP Ariba!")
-
-# File upload
-uploaded_files = st.file_uploader(
-    "Choose files",
-    type=["pdf", "docx", "txt", "csv", "xls", "xlsx"],
-    accept_multiple_files=True
-)
-
-if uploaded_files:
-    if st.button("Process Files"):
-        docs = []
-        for f in uploaded_files:
-            name = f.name.lower()
-            content = ""
-            if name.endswith(".pdf"):
-                content = extract_text_from_pdf(f)
-            elif name.endswith(".docx"):
-                content = extract_text_from_docx(f)
-            elif name.endswith(".txt"):
-                try:
-                    f.seek(0)
-                    content = f.read().decode("utf-8", errors="ignore")
-                except Exception:
-                    content = ""
-            elif name.endswith(".csv"):
+def process_uploaded_files(uploaded_files):
+    docs = []
+    for f in uploaded_files:
+        name = f.name.lower()
+        content = ""
+        if name.endswith(".pdf"):
+            content = extract_text_from_pdf(f)
+        elif name.endswith(".docx"):
+            content = extract_text_from_docx(f)
+        elif name.endswith(".txt"):
+            try:
                 f.seek(0)
-                df = load_csv_safely(f)
-                if df is not None:
-                    content = df.to_string(index=False)
-            elif name.endswith((".xls", ".xlsx")):
-                try:
-                    f.seek(0)
-                    df = pd.read_excel(f, engine="openpyxl")
-                    content = df.to_string(index=False)
-                except Exception:
-                    content = ""
-            else:
+                content = f.read().decode("utf-8", errors="ignore")
+            except Exception:
                 content = ""
-            if content and content.strip():
-                docs.append(Document(page_content=content, metadata={"source": f.name}))
-
-        if docs:
-            st.session_state.chatbot.add_documents(docs)
-            st.success(f"Indexed {len(docs)} uploaded files.")
+        elif name.endswith(".csv"):
+            f.seek(0)
+            df = load_csv_safely(f)
+            if df is not None:
+                content = df.to_string(index=False)
+        elif name.endswith((".xls", ".xlsx")):
+            try:
+                f.seek(0)
+                df = pd.read_excel(f, engine="openpyxl")
+                content = df.to_string(index=False)
+            except Exception:
+                content = ""
         else:
-            st.warning("No content extracted from uploaded files.")
+            content = ""
+        if content and content.strip():
+            docs.append(Document(page_content=content, metadata={"source": f.name}))
 
-# Chat interface
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
+    if docs:
+        st.session_state.chatbot.add_documents(docs)
+        st.success(f"Indexed {len(docs)} uploaded files.")
+    else:
+        st.warning("No content extracted from uploaded files.")
 
-if prompt := st.chat_input("Ask me anything about SAP Ariba"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenerator):
+    """Stream the assistant's response below the latest user message, like ChatGPT."""
+    words = text.split()
+    out = ""
+    for w in words:
+        out += w + " "
+        html = out.replace("\n", "<br>")
+        placeholder.markdown(
+            f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+            unsafe_allow_html=True
+        )
+        time.sleep(0.02)
+    placeholder.markdown(
+        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+        unsafe_allow_html=True
+    )
+
+def on_send():
+    text = st.session_state.user_input.strip()
+    if not text:
+        st.warning("Please enter a message.")
+        return
+    st.session_state.messages.append({
+        "role": "user",
+        "content": text,
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
+    try:
+        st.session_state.chatbot.llm = ChatGroq(
+            groq_api_key=GROQ_API_KEY,
+            model_name=st.session_state.get("selected_model", "gemma2-9b-it"),
+            temperature=st.session_state.get("temperature", 0.1)
+        )
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", QNA_SYSTEM + """
+
+CONTEXT INFORMATION:
+{context}
+
+CONVERSATION HISTORY:
+{chat_history}
+
+Current Date: {current_date}"""),
+            ("user", "{question}")
+        ])
+        st.session_state.chatbot.chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+    except Exception:
+        pass
+
+    with st.spinner("Generating answer..."):
+        resp = st.session_state.chatbot.chat(text)
+
+    # Add the assistant response to messages
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": resp,
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
     
-    with st.chat_message("user"):
-        st.write(prompt)
+    # Set flag to show streaming effect for the new message
+    st.session_state.show_streaming = True
     
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            response = st.session_state.chatbot.chat(prompt)
-            st.write(response)
+    # Auto-speak the response if audio is enabled
+    if st.session_state.get("audio_enabled", False):
+        # Clean the response for speech (remove markdown and special characters)
+        clean_response = re.sub(r'\*\*(.+?)\*\*', r'\1', resp)  # Remove bold markdown
+        clean_response = re.sub(r'\*(.+?)\*', r'\1', clean_response)  # Remove italic markdown
+        clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)  # Remove special chars
+        st.session_state.speak_text = clean_response
     
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.user_input = ""
+
+def toggle_mic():
+    st.session_state.is_recording = not st.session_state.get("is_recording", False)
+
+def toggle_audio():
+    st.session_state.audio_enabled = not st.session_state.get("audio_enabled", False)
+
+def on_clear():
+    st.session_state.messages = []
+    st.session_state.chatbot.conversation_history = []
+
+with st.sidebar:
+    st.image(HEADER_LOGO_URL, width=80)
+    st.title("SAP Ariba RAG Chatbot")
+    uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
+    if uploaded_files:
+        if st.button("Process & Index Uploaded Files"):
+            process_uploaded_files(uploaded_files)
+    st.markdown("---")
+    st.subheader("LLM Settings")
+    st.session_state.temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.temperature, key="temperature_slider")
+    st.session_state.selected_model = st.selectbox("Model", ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"], index=0, key="model_select")
+    st.markdown("---")
+    st.subheader("Diagnostics")
+    if EMBEDDINGS_OK:
+        st.success("Embeddings (HuggingFace) available")
+    else:
+        st.warning("Embeddings not available — using TF-IDF fallback")
+    if PINECONE_OK:
+        st.success("Pinecone available")
+    else:
+        st.info("Pinecone not available — using TF-IDF fallback store")
+    st.markdown("<div class='footer'>Made with ❤️ using Streamlit & LangChain</div>", unsafe_allow_html=True)
+
+st.markdown(f"""
+    <div class="header-card">
+        <div style="flex-shrink:0;">
+            <img src="{HEADER_LOGO_URL}" class="icon-left"/>
+        </div>
+        <div>
+            <h1 style="color:white;margin:0;">SAP Ariba RAG Chatbot</h1>
+            <p style="color:#f0f0f0;margin:4px 0 0 0;">Your SAP Ariba expert assistant — upload documents, ask questions, summarize, and quiz yourself.</p>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+import re
+
+def markdown_to_html(text):
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+    return text
+
+# Summary & Quiz UI Panel - Added before chat interface
+with st.expander("📄 Summary & Quiz Tools", expanded=False):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### Generate Summary")
+        summary_topic = st.text_input("Summarize a specific topic (optional):", key="summary_topic")
+        summary_btn = st.button("Generate Summary", key="summary_btn")
+        if summary_btn:
+            # Retrieve relevant docs
+            query = summary_topic.strip() if summary_topic.strip() else "summarize documents"
+            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
+            else:
+                docs = []
+            context_text = "\n\n".join([d.page_content for d in docs])
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            # Use summary prompt
+            if st.session_state.chatbot.llm:
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", SUMMARY_SYSTEM),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+                try:
+                    summary = chain.invoke({
+                        "question": f"Summarize{' the topic: ' + summary_topic if summary_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+                    })
+                except Exception as e:
+                    summary = f"Summary error: {e}"
+            else:
+                summary = "LLM not available for summary."
+            st.session_state.summary_output = summary
+
+        if st.session_state.summary_output:
+            st.markdown(f"<div class='summary-card'>{st.session_state.summary_output}</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("#### Generate Quiz")
+        quiz_topic = st.text_input("Quiz on topic (optional):", key="quiz_topic")
+        quiz_btn = st.button("Generate Quiz", key="quiz_btn")
+        if quiz_btn:
+            # Retrieve relevant docs
+            query = quiz_topic.strip() if quiz_topic.strip() else "quiz"
+            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
+            else:
+                docs = []
+            context_text = "\n\n".join([d.page_content for d in docs])
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            # Use quiz prompt
+            if st.session_state.chatbot.llm:
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", QUIZ_SYSTEM),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+                try:
+                    quiz_raw = chain.invoke({
+                        "question": f"Create a quiz{' on: ' + quiz_topic if quiz_topic.strip() else ''} from the provided context.\n\nContext:\n{context_text}"
+                    })
+                except Exception as e:
+                    quiz_raw = f"Quiz error: {e}"
+            else:
+                quiz_raw = "LLM not available for quiz."
+            # Parse quiz questions
+            import re
+            quiz_qs = []
+            if isinstance(quiz_raw, str):
+                pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
+                matches = re.findall(pattern, quiz_raw, re.DOTALL)
+                for i, m in enumerate(matches):
+                    quiz_qs.append({
+                        "question": m[0].strip(),
+                        "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
+                        "answer_index": "ABCD".index(m[5].strip())
+                    })
+            st.session_state.quiz_questions = quiz_qs[:5]
+            st.session_state.quiz_index = 0
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_done = False
+            st.session_state.quiz_feedback = None
+
+# Quiz Runner UI - Added before chat interface
+if st.session_state.quiz_questions:
+    questions = st.session_state.quiz_questions
+    idx = st.session_state.quiz_index
+    total = len(questions)
+    st.markdown("---")
+    st.header("📝 Quiz")
+    if st.session_state.quiz_done:
+        st.success(f"Quiz completed! Your score: {st.session_state.quiz_score} / {total}")
+        if st.button("Restart Quiz"):
+            st.session_state.quiz_index = 0
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_done = False
+            st.session_state.quiz_feedback = None
+            st.rerun()
+    else:
+        q = questions[idx]
+        st.markdown(f"**Question {idx+1} of {total}:**")
+        st.write(q['question'])
+        choice_key = f"quiz_choice_{idx}"
+        selected = st.radio("Select an option:", q['options'], key=choice_key)
+        submit_key = f"submit_{idx}"
+        if st.button("Submit Answer", key=submit_key):
+            sel_index = q['options'].index(selected)
+            correct_index = int(q.get('answer_index', 0))
+            if sel_index == correct_index:
+                st.session_state.quiz_feedback = {"correct": True, "message": "Correct ✅"}
+                st.session_state.quiz_score += 1
+            else:
+                st.session_state.quiz_feedback = {
+                    "correct": False,
+                    "message": f"Wrong ❌  | Correct: Option {correct_index+1}: {q['options'][correct_index]}"
+                }
+            st.rerun()
+        fb = st.session_state.get('quiz_feedback')
+        if fb:
+            if fb.get('correct'):
+                st.success(fb.get('message'))
+            else:
+                st.error(fb.get('message'))
+            if idx + 1 < total:
+                if st.button("Next Question"):
+                    st.session_state.quiz_index += 1
+                    st.session_state.quiz_feedback = None
+                    st.rerun()
+            else:
+                if st.button("Finish Quiz"):
+                    st.session_state.quiz_done = True
+                    st.rerun()
+
+# Audio Controls
+with st.container():
+    st.markdown('<div class="audio-controls">', unsafe_allow_html=True)
+    audio_col1, audio_col2, audio_col3, audio_col4 = st.columns([1, 1, 2, 1])
+    
+    with audio_col1:
+        audio_enabled = st.checkbox("🔊 Auto-speak", value=st.session_state.get("audio_enabled", False), key="audio_toggle")
+        st.session_state.audio_enabled = audio_enabled
+    
+    with audio_col2:
+        if st.button("🔇 Stop", key="stop_speaking"):
+            st.markdown('<script>window.stopSpeaking && window.stopSpeaking();</script>', unsafe_allow_html=True)
+    
+    with audio_col3:
+        st.markdown('<span class="audio-status">Ready</span>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ----------- ChatGPT-style Unified Input Bar -----------
+with st.container():
+    # Model & Mode row
+    col_model, col_mode = st.columns([1, 1])
+    with col_model:
+        st.selectbox(
+            "Model",
+            ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"],
+            index=["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"].index(st.session_state.selected_model),
+            key="selected_model"
+        )
+    with col_mode:
+        st.selectbox(
+            "Mode",
+            ["Ask", "Chat", "Search"],
+            index=0,
+            key="chat_mode"
+        )
+
+    st.markdown('<div class="chat-bar">', unsafe_allow_html=True)
+
+    # Mic button
+    if st.button("🎤", key="mic_btn", help="Voice input", use_container_width=False):
+        st.markdown('''
+        <script>
+        if (window.startRecording && window.stopRecording) {
+            if (!window.isRecording) {
+                window.startRecording();
+            } else {
+                window.stopRecording();
+            }
+        } else {
+            alert('Speech recognition not supported in this browser.');
+        }
+        </script>
+        ''', unsafe_allow_html=True)
+
+    # File uploader
+    files = st.file_uploader(
+        "",
+        type=["pdf","docx","txt","csv","xls","xlsx"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key="chat_attach"
+    )
+    if files:
+        process_uploaded_files(files)
+
+    # Text input
+    st.text_input(
+        "",
+        key="user_input",
+        placeholder="Type or speak your question, or upload a file...",
+        label_visibility="collapsed"
+    )
+
+    # Send & Clear buttons
+    if st.button("➤", key="send_btn", help="Send message"):
+        on_send()
+    if st.button("⨉", key="clear_btn", help="Clear chat"):
+        on_clear()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Display chat messages
+
+if st.session_state.messages:
+    for i, message in enumerate(st.session_state.messages):
+        content = message["content"] or ""
+        content_html = markdown_to_html(content)
+        safe_html = content_html.replace("\n", "<br>")
+        
+        if message["role"] == "user":
+            st.markdown(
+                f"<div class='chat-user'><div class='icon-left'>🧑‍💼</div><div><strong>You:</strong> {safe_html}</div></div>", 
+                unsafe_allow_html=True
+            )
+        elif message["role"] == "assistant":
+            # For the last assistant message, show streaming effect
+            if i == len(st.session_state.messages) - 1 and st.session_state.get("show_streaming", False):
+                placeholder = st.empty()
+                stream_assistant_text(content, placeholder)
+                st.session_state.show_streaming = False
+            else:
+                # Add speak button for each assistant message
+                col1, col2 = st.columns([0.95, 0.05])
+                with col1:
+                    st.markdown(
+                        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                        unsafe_allow_html=True
+                    )
+                with col2:
+                    if st.button("🔊", key=f"speak_{i}", help="Click to hear this response"):
+                        clean_text = re.sub(r'\*\*(.+?)\*\*', r'\1', content)
+                        clean_text = re.sub(r'\*(.+?)\*', r'\1', clean_text)
+                        clean_text = re.sub(r'[#\-\*\[\]()]', '', clean_text)
+                        st.markdown(f'''
+                        <script>
+                        if (window.speakText) {{
+                            window.speakText(`{clean_text.replace("`", "").replace("'", "").replace('"', '')}`);
+                        }}
+                        </script>
+                        ''', unsafe_allow_html=True)
+
+# Auto-speak the latest response if enabled
+if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", False):
+    st.markdown(f'''
+    <script>
+    if (window.speakText) {{
+        setTimeout(() => {{
+            window.speakText(`{st.session_state.speak_text.replace("`", "").replace("'", "").replace('"', '')}`);
+        }}, 1000);
+    }}
+    </script>
+    ''', unsafe_allow_html=True)
+    del st.session_state.speak_text
