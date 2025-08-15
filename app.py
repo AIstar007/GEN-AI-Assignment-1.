@@ -1232,14 +1232,17 @@ with st.container():
 with st.container():
     chat_cols = st.columns([1.5, 1.5, 0.8, 0.8, 3.5, 0.7, 0.7])
     with chat_cols[0]:
-        st.selectbox(
+        selected_model_chat = st.selectbox(
             "Model",
             ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"],
             index=["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"].index(st.session_state.selected_model) if "selected_model" in st.session_state else 0,
-            key="selected_model",
+            key="selected_model_chat",
             label_visibility="collapsed",
             format_func=lambda x: f"🧠 {x}"
         )
+        # Sync the chat model selection with the main session state
+        if selected_model_chat != st.session_state.get("selected_model"):
+            st.session_state.selected_model = selected_model_chat
     with chat_cols[1]:
         st.selectbox(
             "Mode",
