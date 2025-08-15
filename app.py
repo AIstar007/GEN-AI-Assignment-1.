@@ -697,7 +697,9 @@ Current Date: {current_date}"""),
         clean_response = re.sub(r'[#\-\*\[\]()]', '', clean_response)  # Remove special chars
         st.session_state.speak_text = clean_response
     
+    
     st.session_state.user_input = ""
+    st.rerun()
 
 def toggle_mic():
     st.session_state.is_recording = not st.session_state.get("is_recording", False)
@@ -941,7 +943,7 @@ with st.container():
 
     # File uploader
     files = st.file_uploader(
-        "",
+        "Upload files",
         type=["pdf","docx","txt","csv","xls","xlsx"],
         accept_multiple_files=True,
         label_visibility="collapsed",
@@ -952,7 +954,7 @@ with st.container():
 
     # Text input
     st.text_input(
-        "",
+        "Enter your message",
         key="user_input",
         placeholder="Type or speak your question, or upload a file...",
         label_visibility="collapsed"
