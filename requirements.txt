@@ -1,5 +1,6 @@
 streamlit
 pandas
+cikit-learn
 PyPDF2
 groq
 python-dotenv
