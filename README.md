@@ -1,7 +1,7 @@
 # Streamlit RAG Chatbot
 
-A Retrieval-Augmented Generation (RAG) chatbot built with Streamlit, FAISS, HuggingFace Embeddings, and LangChain.
-It allows you to upload CSV or TXT files, process them into a FAISS vector store, and chat with the data.
+A Retrieval-Augmented Generation (RAG) chatbot built with Streamlit, Pinecone, HuggingFace Embeddings, and LangChain.
+It allows you to upload CSV or TXT files, process them into a Pinecone vector store, and chat with the data.
 
 ## Features
 - Upload CSV or TXT documents
