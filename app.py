@@ -72,7 +72,7 @@ st.markdown(f"""
     .quiz-card {{ border:1px solid #eee; padding:14px; border-radius:10px; margin-bottom:12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }}
     .question-badge {{ display:inline-block; background:{PRIMARY}; color:white; padding:6px 10px; border-radius:12px; font-weight:700; margin-right:10px; }}
     .correct {{ color: green; font-weight:700; }}
-    .summary-card {{ border-left:6px solid {PRIMARY}; padding:12px; border-radius:8px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.03); margin-bottom:12px; }}
+    .summary-card {{ border-left: 6px solid #0b93f6; padding: 12px; border-radius: 8px; background: #2d2d2d; color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.5); margin-bottom: 12px; line-height: 1.6; }}
     .small-muted {{ color:#666; font-size:13px; }}
     .active-file {{ font-weight:700; color: {PRIMARY}; }}
     .chat-options-bar {{
@@ -1060,3 +1060,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
