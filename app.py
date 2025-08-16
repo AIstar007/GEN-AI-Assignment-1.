@@ -411,6 +411,9 @@ def extract_text_from_docx(uploaded_file) -> str:
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from typing import List
+from langchain.schema import Document
+
 class TFIDFWrapper:
     def __init__(self):
         self.texts = []
@@ -419,27 +422,37 @@ class TFIDFWrapper:
         self.matrix = None
 
     def add_documents(self, documents: List[Document]):
+        """Add docs and rebuild TF-IDF matrix (no incremental support)."""
         for d in documents:
             self.texts.append(d.page_content)
             self.metadatas.append(d.metadata if d.metadata else {})
-        self.vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
-        self.matrix = self.vectorizer.fit_transform(self.texts)
+
+        if self.texts:  # Only fit if non-empty
+            self.vectorizer = TfidfVectorizer(stop_words="english", max_features=5000)
+            self.matrix = self.vectorizer.fit_transform(self.texts)
 
     def from_documents(self, documents: List[Document]):
+        """Initialize TF-IDF store from scratch with given docs."""
         self.texts = [d.page_content for d in documents]
         self.metadatas = [d.metadata if d.metadata else {} for d in documents]
-        self.vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
-        self.matrix = self.vectorizer.fit_transform(self.texts)
+
+        if self.texts:  # Only fit if non-empty
+            self.vectorizer = TfidfVectorizer(stop_words="english", max_features=5000)
+            self.matrix = self.vectorizer.fit_transform(self.texts)
 
     def get_relevant_documents(self, query: str, k: int = 3) -> List[Document]:
-        if self.matrix is None or self.vectorizer is None or len(self.texts) == 0:
+        """Retrieve top-k most relevant docs using cosine similarity."""
+        if not query or self.matrix is None or self.vectorizer is None or not self.texts:
             return []
+
         q_vec = self.vectorizer.transform([query])
         sims = cosine_similarity(q_vec, self.matrix)[0]
         top_idxs = sims.argsort()[::-1][:k]
-        results = []
-        for i in top_idxs:
-            results.append(Document(page_content=self.texts[i], metadata=self.metadatas[i]))
+
+        results = [
+            Document(page_content=self.texts[i], metadata=self.metadatas[i])
+            for i in top_idxs
+        ]
         return results
 
 class EnhancedRAGChatbot:
@@ -453,34 +466,54 @@ class EnhancedRAGChatbot:
         self._init_components()
 
     def _init_components(self):
-        if EMBEDDINGS_OK and PINECONE_OK:
+        """Initialize embeddings, LLM, memory, and chain."""
+
+        # -------------------
+        # Embeddings
+        # -------------------
+        if EMBEDDINGS_OK:
             try:
                 self.embeddings = HUGGINGFACE_EMBEDDINGS(
                     model_name="sentence-transformers/all-MiniLM-L6-v2",
                     model_kwargs={"device": "cpu"}
                 )
-            except Exception:
+            except Exception as e:
+                st.error(f"Failed to load HuggingFace embeddings: {e}")
                 self.embeddings = None
         else:
-            
             self.embeddings = None
 
+        # -------------------
+        # LLM (Groq)
+        # -------------------
         groq_key = os.getenv("GROQ_API_KEY") or GROQ_API_KEY
         if groq_key:
             try:
                 model_name = st.session_state.get("selected_model", "gemma2-9b-it")
                 temp = st.session_state.get("temperature", 0.1)
-                self.llm = ChatGroq(groq_api_key=groq_key, model_name=model_name, temperature=temp)
-            except Exception:
+                self.llm = ChatGroq(
+                    groq_api_key=groq_key,
+                    model_name=model_name,
+                    temperature=temp
+                )
+            except Exception as e:
+                st.error(f"Failed to load Groq LLM: {e}")
                 self.llm = None
         else:
             self.llm = None
 
+        # -------------------
+        # Memory
+        # -------------------
         try:
             self.memory = ConversationBufferWindowMemory(k=5, return_messages=True)
-        except Exception:
+        except Exception as e:
+            st.error(f"Failed to initialize memory: {e}")
             self.memory = None
 
+        # -------------------
+        # Chain
+        # -------------------
         if self.llm:
             prompt_template = ChatPromptTemplate.from_messages([
                 ("system", QNA_SYSTEM + """
@@ -497,23 +530,39 @@ Current Date: {current_date}"""),
             output_parser = StrOutputParser()
             try:
                 self.chain = prompt_template | self.llm | output_parser
-            except Exception:
+            except Exception as e:
+                st.error(f"Failed to build chain: {e}")
                 self.chain = None
 
+        # -------------------
+        # Load default docs
+        # -------------------
         self._load_default_documents()
 
     def _load_default_documents(self):
+        """Load a small set of default SAP Ariba docs into Pinecone or TF-IDF."""
         docs = [
-            Document(page_content="SAP Ariba Contract Management Process details...", metadata={"source": "Contract_Management_Guide"}),
-            Document(page_content="SAP Ariba Sourcing Process details...", metadata={"source": "Sourcing_Process_Guide"}),
+            Document(page_content="SAP Ariba Contract Management Process details...",
+                     metadata={"source": "Contract_Management_Guide"}),
+            Document(page_content="SAP Ariba Sourcing Process details...",
+                     metadata={"source": "Sourcing_Process_Guide"}),
         ]
-        if self.embeddings is not None and PINECONE_OK:
+
+        if self.embeddings is not None and PINECONE_OK and PINECONE:
             try:
                 index_name = "ariba-chatbot"
-                if index_name not in pinecone.list_indexes():
-                    pinecone.create_index(index_name, dimension=384)
-                self.vectorstore = PINECONE.from_documents(docs, self.embeddings, index_name=index_name)
-            except Exception:
+                pc = Pinecone(api_key=st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY")))
+                existing_indexes = [idx["name"] for idx in pc.list_indexes()]
+
+                if index_name not in existing_indexes:
+                    pc.create_index(name=index_name, dimension=384, metric="cosine")
+
+                self.vectorstore = PINECONE.from_documents(
+                    docs, self.embeddings, index_name=index_name
+                )
+                st.success(f"Default documents indexed into Pinecone ({index_name})")
+            except Exception as e:
+                st.warning(f"Pinecone failed, falling back to TF-IDF: {e}")
                 self.vectorstore = TFIDFWrapper()
                 self.vectorstore.from_documents(docs)
         else:
@@ -521,8 +570,10 @@ Current Date: {current_date}"""),
             self.vectorstore.from_documents(docs)
 
     def add_documents(self, documents: List[Document]):
+        """Add user-uploaded docs into Pinecone or TF-IDF."""
         if self.vectorstore is None:
             self.vectorstore = TFIDFWrapper()
+
         try:
             if PINECONE_OK and hasattr(self.vectorstore, "add_documents") and not isinstance(self.vectorstore, TFIDFWrapper):
                 self.vectorstore.add_documents(documents)
@@ -531,7 +582,8 @@ Current Date: {current_date}"""),
             else:
                 self.vectorstore = TFIDFWrapper()
                 self.vectorstore.from_documents(documents)
-        except Exception:
+        except Exception as e:
+            st.warning(f"Vectorstore add failed, using TF-IDF: {e}")
             self.vectorstore = TFIDFWrapper()
             self.vectorstore.from_documents(documents)
 
@@ -1109,6 +1161,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
