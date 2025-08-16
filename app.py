@@ -33,7 +33,7 @@ try:
     pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp"))
 
     if pinecone_api_key:
-        pc = Pinecone(api_key=pinecone_api_key)  # ✅ new way, no init()
+        pc = Pinecone(api_key=pinecone_api_key)
         # sanity check: list indexes
         if pc.list_indexes():
             PINECONE = PineconeStore
@@ -1102,5 +1102,6 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
