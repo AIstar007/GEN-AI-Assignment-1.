@@ -25,7 +25,7 @@ This chatbot lets you **upload your own data** (CSV, TXT, PDF, DOCX, Excel) and 
 1. Clone the repository:  
    ```bash
    git clone https://github.com/AIstar007/GEN-AI-Assignment-1..git
-   cd streamlit-rag-chatbot
+   cd GEN-AI-Assignment-1
    ```
 
 2. Install dependencies:  
