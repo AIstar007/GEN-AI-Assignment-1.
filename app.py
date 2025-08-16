@@ -814,9 +814,6 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
                 summary = "LLM not available for summary."
             st.session_state.summary_output = summary
 
-        if st.session_state.summary_output:
-            st.markdown(f"<div class='summary-card'>{st.session_state.summary_output}</div>", unsafe_allow_html=True)
-
     with col2:
         st.markdown("#### Generate Quiz")
         quiz_topic = st.text_input("Quiz on topic (optional):", key="quiz_topic")
@@ -862,6 +859,27 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
             st.session_state.quiz_score = 0
             st.session_state.quiz_done = False
             st.session_state.quiz_feedback = None
+
+# Summary Display UI - Added after expander, before quiz
+if st.session_state.summary_output:
+    st.markdown("---")
+    st.header("📄 Summary")
+    # Create a container with proper styling for the summary
+    summary_container = st.container()
+    with summary_container:
+        # Convert markdown formatting to HTML for better display
+        summary_html = markdown_to_html(st.session_state.summary_output)
+        summary_html = summary_html.replace("\n", "<br>")
+        st.markdown(f"""
+        <div class='summary-card'>
+            {summary_html}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Add a button to clear the summary
+        if st.button("Clear Summary", key="clear_summary"):
+            st.session_state.summary_output = None
+            st.rerun()
 
 # Quiz Runner UI - Added before chat interface
 if st.session_state.quiz_questions:
