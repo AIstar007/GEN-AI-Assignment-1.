@@ -1004,7 +1004,7 @@ with st.container():
             st.session_state.show_attach = True
     with chat_cols[4]:
         st.text_input(
-            "",
+            "User Input",
             key="user_input",
             placeholder="Type your question or click 🎤 to speak...",
             label_visibility="collapsed"
@@ -1071,3 +1071,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
