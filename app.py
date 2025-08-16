@@ -552,20 +552,27 @@ Current Date: {current_date}"""),
             try:
                 index_name = "ariba-chatbot"
                 pc = Pinecone(api_key=st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY")))
-                existing_indexes = [idx["name"] for idx in pc.list_indexes()]
-
+                existing_indexes = [idx["name"] for idx in pc.list_indexes()]  
+                
                 if index_name not in existing_indexes:
-                    pc.create_index(name=index_name, dimension=384, metric="cosine")
-
+                    pc.create_index(
+                        name=index_name,
+                        dimension=384,
+                        metric="cosine",
+                        spec={"pod": {"replicas": 1, "pod_type": "p1.x1"}}
+                    )
+                    st.info(f"Created new Pinecone index: {index_name}")
+                
                 self.vectorstore = PINECONE.from_documents(
                     docs, self.embeddings, index_name=index_name
                 )
                 st.success(f"Default documents indexed into Pinecone ({index_name})")
+            
             except Exception as e:
                 st.warning(f"Pinecone failed, falling back to TF-IDF: {e}")
                 self.vectorstore = TFIDFWrapper()
                 self.vectorstore.from_documents(docs)
-        else:
+        else:  
             self.vectorstore = TFIDFWrapper()
             self.vectorstore.from_documents(docs)
 
@@ -1161,6 +1168,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
