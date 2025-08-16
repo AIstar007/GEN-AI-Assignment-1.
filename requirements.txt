@@ -15,5 +15,3 @@ scikit-learn
 openpyxl
 langchain-core
 pinecone-client
-fitz 
-
