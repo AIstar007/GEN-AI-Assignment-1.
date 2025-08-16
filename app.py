@@ -796,6 +796,7 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
                 docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
             else:
                 docs = []
+            max_context_chars = 4000    
             context_text = "\n\n".join([d.page_content for d in docs])
             current_date = datetime.now().strftime("%Y-%m-%d")
             # Use summary prompt
@@ -826,6 +827,7 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
                 docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
             else:
                 docs = []
+            max_context_chars = 4000    
             context_text = "\n\n".join([d.page_content for d in docs])
             current_date = datetime.now().strftime("%Y-%m-%d")
             # Use quiz prompt
@@ -1069,6 +1071,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
