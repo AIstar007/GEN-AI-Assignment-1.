@@ -861,25 +861,34 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
             st.session_state.quiz_feedback = None
 
 # Summary Display UI - Added after expander, before quiz
+
 if st.session_state.summary_output:
     st.markdown("---")
     st.header("📄 Summary")
+    
     # Create a container with proper styling for the summary
     summary_container = st.container()
     with summary_container:
         # Convert markdown formatting to HTML for better display
         summary_html = markdown_to_html(st.session_state.summary_output)
         summary_html = summary_html.replace("\n", "<br>")
+        
+        # Escape any potential HTML characters that could break the display
+        import html
+        summary_html = html.escape(summary_html).replace("&lt;br&gt;", "<br>").replace("&lt;b&gt;", "<b>").replace("&lt;/b&gt;", "</b>").replace("&lt;i&gt;", "<i>").replace("&lt;/i&gt;", "</i>")
+        
         st.markdown(f"""
         <div class='summary-card'>
             {summary_html}
         </div>
         """, unsafe_allow_html=True)
         
-        # Add a button to clear the summary
-        if st.button("Clear Summary", key="clear_summary"):
-            st.session_state.summary_output = None
-            st.rerun()
+        # Add a button to clear the summary with better layout
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("Clear Summary", key="clear_summary", use_container_width=True):
+                st.session_state.summary_output = None
+                st.rerun()
 
 # Quiz Runner UI - Added before chat interface
 if st.session_state.quiz_questions:
@@ -1060,6 +1069,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
