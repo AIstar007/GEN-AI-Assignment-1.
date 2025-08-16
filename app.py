@@ -870,8 +870,9 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
                 pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
                 matches = re.findall(pattern, quiz_raw, re.DOTALL)
                 for i, m in enumerate(matches[:5]):
+                    import re
                     quiz_qs.append({
-                        "question": m[0].strip(),
+                        "question": re.sub(r"\*+", "", m[0].strip()),
                         "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
                         "answer_index": "ABCD".index(m[5].strip())
                     })
@@ -1089,6 +1090,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
