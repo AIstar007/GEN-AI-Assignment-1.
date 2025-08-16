@@ -538,6 +538,28 @@ Current Date: {current_date}"""),
         # Load default docs
         # -------------------
         self._load_default_documents()
+        
+    def ensure_index_exists(self, index_name: str = "ariba-chatbot", dimension: int = 384):
+        """Ensure the Pinecone index exists, create it if missing."""
+        try:
+            pc = Pinecone(api_key=st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY")))
+            existing_indexes = [idx["name"] for idx in pc.list_indexes()]
+            
+            if index_name not in existing_indexes:
+                pc.create_index(
+                    name=index_name,
+                    dimension=dimension,
+                    metric="cosine",
+                    spec={"pod": {"replicas": 1, "pod_type": "p1.x1"}}
+                )
+                st.info(f"Created new Pinecone index: {index_name}")
+            else:
+                st.success(f"Pinecone index already exists: {index_name}")
+
+            return True
+         except Exception as e:
+             st.error(f"Failed to ensure Pinecone index: {e}")
+             return False
 
     def _load_default_documents(self):
         """Load a small set of default SAP Ariba docs into Pinecone or TF-IDF."""
@@ -1168,6 +1190,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
