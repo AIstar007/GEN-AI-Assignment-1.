@@ -633,17 +633,42 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
     """Stream the assistant's response below the latest user message, like ChatGPT."""
     words = text.split()
     out = ""
-    html = ""   # ✅ Ensure html is defined even if text is empty
     for w in words:
         out += w + " "
-        html = out.replace("\n", "<br>")
+        # Stream Markdown content inside your styled chat bubble
         placeholder.markdown(
-            f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+            f"""
+            <div class='chat-assistant'>
+                <div class='icon-left'>
+                    <img src='{ASSISTANT_LOGO_URL}' class='icon-left'/>
+                </div>
+                <div>
+                    <strong>SAP Ariba Chatbot:</strong>
+                    <div style="margin-top: 5px;">
+                        {st.markdown(out)}
+                    </div>
+                </div>
+            </div>
+            """,
             unsafe_allow_html=True
         )
         time.sleep(0.02)
+
+    # Final render
     placeholder.markdown(
-        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+        f"""
+        <div class='chat-assistant'>
+            <div class='icon-left'>
+                <img src='{ASSISTANT_LOGO_URL}' class='icon-left'/>
+            </div>
+            <div>
+                <strong>SAP Ariba Chatbot:</strong>
+                <div style="margin-top: 5px;">
+                    {st.markdown(out)}
+                </div>
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
@@ -1090,3 +1115,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
