@@ -869,14 +869,14 @@ if st.session_state.summary_output:
     # Create a container with proper styling for the summary
     summary_container = st.container()
     with summary_container:
-        # Display the summary with proper formatting
+        # Simple text display without complex HTML manipulation
         st.markdown(f"""
-        <div style='background-color: #1e1e1e; padding: 20px; border-radius: 8px; border-left: 4px solid #0ea5e9; margin: 10px 0;'>
-            <div style='color: #888; font-size: 14px; margin-bottom: 10px;'>
+        <div style='background-color: #262730; padding: 20px; border-radius: 8px; border-left: 4px solid #0ea5e9; margin: 10px 0; color: white;'>
+            <div style='color: #888; font-size: 14px; margin-bottom: 15px;'>
                 The provided material does not contain enough information to summarize fully.
             </div>
-            <div style='color: #fff; line-height: 1.6;'>
-                {st.session_state.summary_output.replace(chr(10), '<br>')}
+            <div style='font-size: 16px; line-height: 1.6; white-space: pre-wrap;'>
+{st.session_state.summary_output}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -884,8 +884,7 @@ if st.session_state.summary_output:
         # Add a button to clear the summary with better layout
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("Clear Summary", key="clear_summary", use_container_width=True, 
-                        type="secondary"):
+            if st.button("Clear Summary", key="clear_summary", use_container_width=True):
                 st.session_state.summary_output = None
                 st.rerun()
 
@@ -1068,6 +1067,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
