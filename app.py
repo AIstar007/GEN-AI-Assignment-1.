@@ -25,7 +25,7 @@ except Exception:
     EMBEDDINGS_OK = False
 
 try:
-    import pinecone
+    from pinecone import Pinecone
     from langchain_community.vectorstores import Pinecone as PineconeStore
     pinecone_api_key = os.getenv("PINECONE_API_KEY")
     pinecone_env = os.getenv("PINECONE_ENVIRONMENT") or "us-west1-gcp"
@@ -1094,3 +1094,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
