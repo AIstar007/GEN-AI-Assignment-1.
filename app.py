@@ -30,21 +30,28 @@ try:
 
     # Load API key from Streamlit secrets (preferred) or env vars
     pinecone_api_key = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
-    pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp"))
 
     if pinecone_api_key:
-        pc = Pinecone(api_key=pinecone_api_key)
-        # sanity check: list indexes
-        if pc.list_indexes():
-            PINECONE = PineconeStore
-            PINECONE_OK = True
-        else:
+        try:
+            pc = Pinecone(api_key=pinecone_api_key)
+
+            indexes = pc.list_indexes().names()
+            if indexes:
+                PINECONE = PineconeStore
+                PINECONE_OK = True
+                st.success(f"Pinecone connected. Available indexes: {indexes}")
+            else:
+                PINECONE_OK = False
+                st.warning("Pinecone API key is valid but no indexes were found.")
+        except Exception as e:
             PINECONE_OK = False
+            st.error(f"Pinecone init failed: {e}")
     else:
         PINECONE_OK = False
+        st.warning("No Pinecone API key found in secrets or environment variables.")
 except Exception as e:
-    st.warning(f"Pinecone init failed: {e}")
     PINECONE_OK = False
+    st.error(f"Pinecone import/init error: {e}")
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
@@ -1102,6 +1109,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
