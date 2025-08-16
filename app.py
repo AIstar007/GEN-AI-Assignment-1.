@@ -537,6 +537,7 @@ Current Date: {current_date}"""),
     except Exception as e:
         return f"Retriever error: {e}"
     
+    # ✅ Truncate context to avoid exceeding model limit
     max_context_chars = 4000
     context_text = "\n\n".join([d.page_content for d in docs])[:max_context_chars]
 
@@ -562,7 +563,6 @@ Current Date: {current_date}"""),
     self.conversation_history.append(f"User: {question}")
     self.conversation_history.append(f"AI: {answer}")
     return answer
-
 
 # Initialize session state
 if "chatbot" not in st.session_state:
@@ -1072,4 +1072,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
