@@ -447,6 +447,7 @@ class EnhancedRAGChatbot:
             except Exception:
                 self.embeddings = None
         else:
+            
             self.embeddings = None
 
         groq_key = os.getenv("GROQ_API_KEY") or GROQ_API_KEY
@@ -520,45 +521,48 @@ Current Date: {current_date}"""),
             self.vectorstore.from_documents(documents)
 
     def chat(self, question: str) -> str:
-        if self.vectorstore is None:
-            return "No documents indexed. Upload documents first."
-        try:
-            if PINECONE_OK and hasattr(self.vectorstore, "as_retriever") and not isinstance(self.vectorstore, TFIDFWrapper):
-                retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
-                docs = retriever.get_relevant_documents(question)
-            elif isinstance(self.vectorstore, TFIDFWrapper):
-                docs = self.vectorstore.get_relevant_documents(question, k=3)
-            else:
-                if hasattr(self.vectorstore, "get_relevant_documents"):
-                    docs = self.vectorstore.get_relevant_documents(question)
-                else:
-                    docs = []
-        except Exception as e:
-            return f"Retriever error: {e}"
-
-        context_text = "\n\n".join([d.page_content for d in docs])
-        chat_history = "\n".join(self.conversation_history[-10:])
-        current_date = datetime.now().strftime("%Y-%m-%d")
-
-        if self.chain is None:
-            if context_text.strip():
-                answer = f"Context found from documents:\n\n{context_text[:1000]}...\n\n(LLM unavailable — set GROQ_API_KEY to enable LLM answers.)"
-            else:
-                answer = "No contextual documents found and LLM not available."
+    if self.vectorstore is None:
+        return "No documents indexed. Upload documents first."
+    try:
+        if PINECONE_OK and hasattr(self.vectorstore, "as_retriever") and not isinstance(self.vectorstore, TFIDFWrapper):
+            retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
+            docs = retriever.get_relevant_documents(question)
+        elif isinstance(self.vectorstore, TFIDFWrapper):
+            docs = self.vectorstore.get_relevant_documents(question, k=3)
         else:
-            try:
-                answer = self.chain.invoke({
-                    "context": context_text,
-                    "chat_history": chat_history,
-                    "question": question,
-                    "current_date": current_date
-                })
-            except Exception as e:
-                answer = f"LLM/chain error: {e}"
+            if hasattr(self.vectorstore, "get_relevant_documents"):
+                docs = self.vectorstore.get_relevant_documents(question)
+            else:
+                docs = []
+    except Exception as e:
+        return f"Retriever error: {e}"
+    
+    max_context_chars = 4000
+    context_text = "\n\n".join([d.page_content for d in docs])[:max_context_chars]
 
-        self.conversation_history.append(f"User: {question}")
-        self.conversation_history.append(f"AI: {answer}")
-        return answer
+    chat_history = "\n".join(self.conversation_history[-10:])
+    current_date = datetime.now().strftime("%Y-%m-%d")
+
+    if self.chain is None:
+        if context_text.strip():
+            answer = f"Context found from documents:\n\n{context_text[:1000]}...\n\n(LLM unavailable — set GROQ_API_KEY to enable LLM answers.)"
+        else:
+            answer = "No contextual documents found and LLM not available."
+    else:
+        try:
+            answer = self.chain.invoke({
+                "context": context_text,
+                "chat_history": chat_history,
+                "question": question,
+                "current_date": current_date
+            })
+        except Exception as e:
+            answer = f"LLM/chain error: {e}"
+
+    self.conversation_history.append(f"User: {question}")
+    self.conversation_history.append(f"AI: {answer}")
+    return answer
+
 
 # Initialize session state
 if "chatbot" not in st.session_state:
@@ -1068,3 +1072,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
