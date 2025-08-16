@@ -564,37 +564,36 @@ Current Date: {current_date}"""),
     def _load_default_documents(self):
         """Load a small set of default SAP Ariba docs into Pinecone or TF-IDF."""
         docs = [
-            Document(page_content="SAP Ariba Contract Management Process details...",
-                     metadata={"source": "Contract_Management_Guide"}),
-            Document(page_content="SAP Ariba Sourcing Process details...",
-                     metadata={"source": "Sourcing_Process_Guide"}),
+            Document(
+                page_content="SAP Ariba Contract Management Process details...",
+                metadata={"source": "Contract_Management_Guide"}
+            ),
+            Document(
+                page_content="SAP Ariba Sourcing Process details...",
+                metadata={"source": "Sourcing_Process_Guide"}
+            ),
         ]
-
+        
         if self.embeddings is not None and PINECONE_OK and PINECONE:
             try:
                 index_name = "ariba-chatbot"
-                pc = Pinecone(api_key=st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY")))
-                existing_indexes = [idx["name"] for idx in pc.list_indexes()]  
                 
-                if index_name not in existing_indexes:
-                    pc.create_index(
-                        name=index_name,
-                        dimension=384,
-                        metric="cosine",
-                        spec={"pod": {"replicas": 1, "pod_type": "p1.x1"}}
+                if self.ensure_index_exists(index_name, dimension=384):
+                    self.vectorstore = PINECONE.from_documents(
+                        docs, self.embeddings, index_name=index_name
                     )
-                    st.info(f"Created new Pinecone index: {index_name}")
-                
-                self.vectorstore = PINECONE.from_documents(
-                    docs, self.embeddings, index_name=index_name
-                )
-                st.success(f"Default documents indexed into Pinecone ({index_name})")
+                    st.success(f"Default documents indexed into Pinecone ({index_name})")
+                else:
+                    # Fallback
+                    self.vectorstore = TFIDFWrapper()
+                    self.vectorstore.from_documents(docs)
             
             except Exception as e:
                 st.warning(f"Pinecone failed, falling back to TF-IDF: {e}")
                 self.vectorstore = TFIDFWrapper()
                 self.vectorstore.from_documents(docs)
-        else:  
+        else:
+            # If embeddings or Pinecone not available → TF-IDF
             self.vectorstore = TFIDFWrapper()
             self.vectorstore.from_documents(docs)
 
@@ -1190,11 +1189,3 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
-
-
-
-
-
-
-
-
