@@ -557,9 +557,9 @@ Current Date: {current_date}"""),
                 st.success(f"Pinecone index already exists: {index_name}")
 
             return True
-         except Exception as e:
-             st.error(f"Failed to ensure Pinecone index: {e}")
-             return False
+        except Exception as e:
+            st.error(f"Failed to ensure Pinecone index: {e}")
+            return False
 
     def _load_default_documents(self):
         """Load a small set of default SAP Ariba docs into Pinecone or TF-IDF."""
@@ -1190,6 +1190,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
