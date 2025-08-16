@@ -27,15 +27,23 @@ except Exception:
 try:
     from pinecone import Pinecone
     from langchain_community.vectorstores import Pinecone as PineconeStore
-    pinecone_api_key = os.getenv("PINECONE_API_KEY")
-    pinecone_env = os.getenv("PINECONE_ENVIRONMENT") or "us-west1-gcp"
+
+    # Load API key from Streamlit secrets (preferred) or env vars
+    pinecone_api_key = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
+    pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp"))
+
     if pinecone_api_key:
-        pinecone.init(api_key=pinecone_api_key, environment=pinecone_env)
-        PINECONE = PineconeStore
-        PINECONE_OK = True
+        pc = Pinecone(api_key=pinecone_api_key)  # ✅ new way, no init()
+        # sanity check: list indexes
+        if pc.list_indexes():
+            PINECONE = PineconeStore
+            PINECONE_OK = True
+        else:
+            PINECONE_OK = False
     else:
         PINECONE_OK = False
-except Exception:
+except Exception as e:
+    st.warning(f"Pinecone init failed: {e}")
     PINECONE_OK = False
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -1094,4 +1102,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
