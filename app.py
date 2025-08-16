@@ -802,6 +802,7 @@ with st.expander("📄 Summary & Quiz Tools", expanded=False):
 
         summary_btn = st.button("Generate Summary", key="summary_btn")
         if summary_btn:
+            safe_input = (summary_question or "").strip()
             if summary_mode == "Summarize whole uploaded documents":
                 query = summary_question.strip() if summary_question else "summarize the uploaded documents"
             else:
@@ -1093,6 +1094,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
