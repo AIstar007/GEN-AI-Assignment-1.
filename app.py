@@ -787,99 +787,99 @@ def markdown_to_html(text):
 with st.expander("📄 Summary & Quiz Tools", expanded=False):
     col1, col2 = st.columns(2)
     with col1:
-    st.markdown("#### Generate Summary")
+        st.markdown("#### Generate Summary")
 
-    # Summary mode selection
-    summary_mode = st.radio(
-        "Summary mode",
-        ["Summarize whole uploaded documents", "Summarize a specific topic"],
-        index=0,
-        key="summary_mode"
-    )
+        # Summary mode selection
+        summary_mode = st.radio(
+            "Summary mode",
+            ["Summarize whole uploaded documents", "Summarize a specific topic"],
+            index=0,
+            key="summary_mode"
+        )
 
-    # Always show typing option
-    summary_topic = st.text_input("Enter instructions or topic (optional):", key="summary_topic")
+        # Always show typing option
+        summary_topic = st.text_input("Enter instructions or topic (optional):", key="summary_topic")
 
-    summary_btn = st.button("Generate Summary", key="summary_btn")
-    if summary_btn:
-        query = summary_topic.strip() if summary_topic else "summarize documents"
-        if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
-            docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
-        else:
-            docs = []
-        context_text = "\n\n".join([d.page_content for d in docs])[:4000]
+        summary_btn = st.button("Generate Summary", key="summary_btn")
+        if summary_btn:
+            query = summary_topic.strip() if summary_topic else "summarize documents"
+            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
+            else: 
+                docs = []
+            context_text = "\n\n".join([d.page_content for d in docs])[:4000]
 
-        if st.session_state.chatbot.llm:
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", SUMMARY_SYSTEM),
-                ("user", "{question}")
-            ])
-            chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
-            try:
-                summary = chain.invoke({
-                    "question": f"Summarize {'the uploaded documents' if summary_mode=='Summarize whole uploaded documents' else 'the specific topic'} {('with instructions: ' + summary_topic) if summary_topic else ''}.\n\nContext:\n{context_text}"
-                })
-            except Exception as e:
-                summary = f"Summary error: {e}"
-        else:
-            summary = "LLM not available for summary."
-        st.session_state.summary_output = summary
+            if st.session_state.chatbot.llm:
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", SUMMARY_SYSTEM),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+                try:
+                    summary = chain.invoke({
+                        "question": f"Summarize {'the uploaded documents' if summary_mode=='Summarize whole uploaded documents' else 'the specific topic'} {('with instructions: ' + summary_topic) if summary_topic else ''}.\n\nContext:\n{context_text}"
+                    })
+                except Exception as e:
+                    summary = f"Summary error: {e}"
+            else:
+                summary = "LLM not available for summary."
+            st.session_state.summary_output = summary
 
     with col2:
-    st.markdown("#### Generate Quiz")
+        st.markdown("#### Generate Quiz")
 
-    # Quiz mode selection
-    quiz_mode = st.radio(
-        "Quiz mode",
-        ["Create quiz from whole documents", "Create quiz from a specific topic"],
-        index=0,
-        key="quiz_mode"
-    )
+        # Quiz mode selection
+        quiz_mode = st.radio(
+            "Quiz mode",
+            ["Create quiz from whole documents", "Create quiz from a specific topic"],
+            index=0,
+            key="quiz_mode"
+        )
 
-    # Always show typing option
-    quiz_topic = st.text_input("Enter quiz topic or instructions (optional):", key="quiz_topic")
+        # Always show typing option
+        quiz_topic = st.text_input("Enter quiz topic or instructions (optional):", key="quiz_topic")
 
-    quiz_btn = st.button("Generate Quiz", key="quiz_btn")
-    if quiz_btn:
-        query = quiz_topic.strip() if quiz_topic else "quiz"
-        if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
-            docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
-        else:
-            docs = []
-        context_text = "\n\n".join([d.page_content for d in docs])[:4000]
+        quiz_btn = st.button("Generate Quiz", key="quiz_btn")
+        if quiz_btn:
+            query = quiz_topic.strip() if quiz_topic else "quiz"
+            if hasattr(st.session_state.chatbot.vectorstore, "get_relevant_documents"):
+                docs = st.session_state.chatbot.vectorstore.get_relevant_documents(query, k=6)
+            else:
+                docs = []
+            context_text = "\n\n".join([d.page_content for d in docs])[:4000]
 
-        if st.session_state.chatbot.llm:
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", QUIZ_SYSTEM),
-                ("user", "{question}")
-            ])
-            chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
-            try:
-                quiz_raw = chain.invoke({
-                    "question": f"Create a quiz {('from the uploaded documents' if quiz_mode=='Create quiz from whole documents' else 'on the specific topic')} {('with instructions: ' + quiz_topic) if quiz_topic else ''}.\n\nContext:\n{context_text}"
-                })
-            except Exception as e:
-                quiz_raw = f"Quiz error: {e}"
-        else:
-            quiz_raw = "LLM not available for quiz."
+            if st.session_state.chatbot.llm:
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", QUIZ_SYSTEM),
+                    ("user", "{question}")
+                ])
+                chain = prompt_template | st.session_state.chatbot.llm | StrOutputParser()
+                try:
+                    quiz_raw = chain.invoke({
+                        "question": f"Create a quiz {('from the uploaded documents' if quiz_mode=='Create quiz from whole documents' else 'on the specific topic')} {('with instructions: ' + quiz_topic) if quiz_topic else ''}.\n\nContext:\n{context_text}"
+                    })
+                except Exception as e:
+                    quiz_raw = f"Quiz error: {e}"
+            else:
+                quiz_raw = "LLM not available for quiz."
 
-        # Parse quiz questions
-        import re
-        quiz_qs = []
-        if isinstance(quiz_raw, str):
-            pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
-            matches = re.findall(pattern, quiz_raw, re.DOTALL)
-            for i, m in enumerate(matches[:5]):
-                quiz_qs.append({
-                    "question": m[0].strip(),
-                    "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
-                    "answer_index": "ABCD".index(m[5].strip())
-                })
-        st.session_state.quiz_questions = quiz_qs
-        st.session_state.quiz_index = 0
-        st.session_state.quiz_score = 0
-        st.session_state.quiz_done = False
-        st.session_state.quiz_feedback = None
+            # Parse quiz questions
+            import re
+            quiz_qs = []
+            if isinstance(quiz_raw, str):
+                pattern = r"Q\d+\.(.*?)\nA\.(.*?)\nB\.(.*?)\nC\.(.*?)\nD\.(.*?)\nAnswer:\s*([A-D])"
+                matches = re.findall(pattern, quiz_raw, re.DOTALL)
+                for i, m in enumerate(matches[:5]):
+                    quiz_qs.append({
+                        "question": m[0].strip(),
+                        "options": [m[1].strip(), m[2].strip(), m[3].strip(), m[4].strip()],
+                        "answer_index": "ABCD".index(m[5].strip())
+                    })
+            st.session_state.quiz_questions = quiz_qs
+            st.session_state.quiz_index = 0
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_done = False
+            st.session_state.quiz_feedback = None
 
 # Summary Display UI - Added after expander, before quiz
 
@@ -1089,5 +1089,6 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
