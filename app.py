@@ -633,6 +633,7 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
     """Stream the assistant's response below the latest user message, like ChatGPT."""
     words = text.split()
     out = ""
+    html = ""   # ✅ Ensure html is defined even if text is empty
     for w in words:
         out += w + " "
         html = out.replace("\n", "<br>")
@@ -1071,4 +1072,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
