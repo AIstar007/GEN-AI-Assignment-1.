@@ -730,7 +730,7 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
     """Stream the assistant's response below the latest user message, like ChatGPT."""
     words = text.split()
     out = ""
-    html = ""   # ✅ Ensure html is defined even if text is empty
+    html = ""   
     for w in words:
         out += w + " "
         # Convert Markdown bold (**...**) → <b>...</b>
@@ -861,7 +861,6 @@ with st.sidebar:
         st.success("Pinecone available")
     else:
         st.info("Pinecone not available — using TF-IDF fallback store")
-    st.markdown("<div class='footer'>Made with ❤️ using Streamlit & LangChain</div>", unsafe_allow_html=True)
 
 st.markdown(f"""
     <div class="header-card">
@@ -1093,7 +1092,7 @@ with st.container():
     with chat_cols[1]:
         st.selectbox(
             "Mode",
-            ["Ask", "Chat", "Search", "General"],  # ✅ Added General mode
+            ["Ask", "Chat", "Search", "General"],  
             index=["Ask", "Chat", "Search", "General"].index(st.session_state.get("chat_mode", "Ask")),
             key="chat_mode",
             label_visibility="collapsed",
@@ -1189,3 +1188,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
