@@ -40,7 +40,7 @@ This chatbot lets you **upload your own data** (CSV, TXT, PDF, DOCX, Excel) and 
      GROQ_API_KEY=your_groq_api_key
      PINECONE_API_KEY=your_pinecone_api_key
      PINECONE_ENVIRONMENT=us-west1-gcp
-     PINECONE_INDEX_NAME="your-index"
+     PINECONE_INDEX_NAME=your-index
      ```
 
 ---
