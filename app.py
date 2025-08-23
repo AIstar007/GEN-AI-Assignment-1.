@@ -540,23 +540,30 @@ Current Date: {current_date}"""),
         # -------------------
         self._load_default_documents()
         
+    from pinecone import Pinecone, ServerlessSpec
+
     def ensure_index_exists(self, index_name: str = "rag-index", dimension: int = 1024):
         """Ensure the Pinecone index exists, create it if missing."""
         try:
             pc = Pinecone(api_key=st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY")))
-            existing_indexes = [idx["name"] for idx in pc.list_indexes()]
+            
+            # list index names properly
+            existing_indexes = pc.list_indexes().names()
             
             if index_name not in existing_indexes:
                 pc.create_index(
                     name=index_name,
                     dimension=dimension,
                     metric="cosine",
-                    spec={"pod": {"replicas": 1, "pod_type": "p1.x1"}}
+                    spec=ServerlessSpec(
+                        cloud="aws",   
+                        region="us-east-1"
+                    )
                 )
                 st.info(f"Created new Pinecone index: {index_name}")
             else:
                 st.success(f"Pinecone index already exists: {index_name}")
-
+                
             return True
         except Exception as e:
             st.error(f"Failed to ensure Pinecone index: {e}")
@@ -1189,9 +1196,3 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
-
-
-
-
-
-
