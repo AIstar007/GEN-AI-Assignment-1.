@@ -69,7 +69,7 @@ PRIMARY = "#0b93f6"
 HEADER_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 ASSISTANT_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
 
-st.set_page_config(page_title="SAP Ariba RAG Chatbot", layout="wide")
+st.set_page_config(page_title="RAG Chatbot", layout="wide")
 st.markdown(f"""
     <style>
     .header-card {{ background-color: {PRIMARY}; padding:16px; border-radius:10px; color: white; display:flex; gap:16px; align-items:center; }}
@@ -1189,3 +1189,4 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
