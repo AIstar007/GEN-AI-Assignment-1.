@@ -321,7 +321,7 @@ window.stopSpeaking = stopSpeaking;
 """, unsafe_allow_html=True)
 
 QNA_SYSTEM = """
-You are SAP Ariba Expert Assistant. Use ONLY the provided context passages.
+You are a Expert Assistant. Use ONLY the provided context passages.
 - If the topic or keyword appears in the context, return the relevant details from the context.
 - Do NOT invent facts or use outside knowledge.
 - If the answer is not present in the provided context, reply exactly: "I could not find the answer in the provided material."
@@ -330,7 +330,7 @@ Answer in a simple, customer-friendly tone.
 """
 
 SUMMARY_SYSTEM = """
-You are SAP Ariba Expert Assistant. Using ONLY the provided context, OUTPUT in Markdown:
+You are a Expert Assistant. Using ONLY the provided context, OUTPUT in Markdown:
 
 ### Summary
 <3–6 sentences overview>
@@ -345,7 +345,7 @@ If insufficient info, say: "The provided material does not contain enough inform
 """
 
 QUIZ_SYSTEM = """
-You are SAP Ariba Expert Assistant. Using ONLY the provided context, create EXACTLY 5 multiple-choice questions.
+You are a Expert Assistant. Using ONLY the provided context, create EXACTLY 5 multiple-choice questions.
 Output strictly in this format for each question:
 
 Q1. Question text
@@ -562,14 +562,14 @@ Current Date: {current_date}"""),
             return False
 
     def _load_default_documents(self):
-        """Load a small set of default SAP Ariba docs into Pinecone or TF-IDF."""
+        """Load a small set of default docs into Pinecone or TF-IDF."""
         docs = [
             Document(
-                page_content="SAP Ariba Contract Management Process details...",
+                page_content="Contract Management Process details...",
                 metadata={"source": "Contract_Management_Guide"}
             ),
             Document(
-                page_content="SAP Ariba Sourcing Process details...",
+                page_content="Sourcing Process details...",
                 metadata={"source": "Sourcing_Process_Guide"}
             ),
         ]
@@ -737,12 +737,12 @@ def stream_assistant_text(text: str, placeholder: st.delta_generator.DeltaGenera
         html = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", out)
         html = html.replace("\n", "<br>")
         placeholder.markdown(
-            f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+            f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>RAG Chatbot:</strong> {html}</div></div>",
             unsafe_allow_html=True
         )
         time.sleep(0.02)
     placeholder.markdown(
-        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {html}</div></div>",
+        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>RAG Chatbot:</strong> {html}</div></div>",
         unsafe_allow_html=True
     )
 
@@ -842,7 +842,7 @@ def on_clear():
 
 with st.sidebar:
     st.image(HEADER_LOGO_URL, width=80)
-    st.title("SAP Ariba RAG Chatbot")
+    st.title("RAG Chatbot")
     uploaded_files = st.file_uploader("Upload documents (pdf/docx/txt/csv/xlsx)", accept_multiple_files=True, type=["pdf","docx","txt","csv","xls","xlsx"])
     if uploaded_files:
         if st.button("Process & Index Uploaded Files"):
@@ -869,8 +869,8 @@ st.markdown(f"""
             <img src="{HEADER_LOGO_URL}" class="icon-left"/>
         </div>
         <div>
-            <h1 style="color:white;margin:0;">SAP Ariba RAG Chatbot</h1>
-            <p style="color:#f0f0f0;margin:4px 0 0 0;">Your SAP Ariba expert assistant — upload documents, ask questions, summarize, and quiz yourself.</p>
+            <h1 style="color:white;margin:0;">RAG Chatbot</h1>
+            <p style="color:#f0f0f0;margin:4px 0 0 0;">You are a expert assistant — upload documents, ask questions, summarize, and quiz yourself.</p>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -1161,7 +1161,7 @@ if st.session_state.messages:
                 col1, col2 = st.columns([0.95, 0.05])
                 with col1:
                     st.markdown(
-                        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>SAP Ariba Chatbot:</strong> {safe_html}</div></div>",
+                        f"<div class='chat-assistant'><div class='icon-left'><img src='{ASSISTANT_LOGO_URL}' class='icon-left'/></div><div><strong>RAG Chatbot:</strong> {safe_html}</div></div>",
                         unsafe_allow_html=True
                     )
                 with col2:
@@ -1189,4 +1189,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
