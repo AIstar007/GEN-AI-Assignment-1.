@@ -14,4 +14,5 @@ huggingface_hub
 scikit-learn
 openpyxl
 langchain-core
+langchain-pinecone
 pinecone
