@@ -475,7 +475,7 @@ class EnhancedRAGChatbot:
         if EMBEDDINGS_OK:
             try:
                 self.embeddings = HUGGINGFACE_EMBEDDINGS(
-                    model_name="llama-text-embed-v2",
+                    model_name="BAAI/bge-large-en-v1.5",
                     model_kwargs={"device": "cpu"}
                 )
             except Exception as e:
@@ -1189,6 +1189,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
