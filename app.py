@@ -36,13 +36,14 @@ try:
             pc = Pinecone(api_key=pinecone_api_key)
 
             indexes = pc.list_indexes().names()
-            if indexes:
+            if "rag-index" in indexes:
                 PINECONE = PineconeStore
                 PINECONE_OK = True
-                st.success(f"Pinecone connected. Available indexes: {indexes}")
+                st.success(f"Pinecone connected. Using index: rag-index")
             else:
                 PINECONE_OK = False
-                st.warning("Pinecone API key is valid but no indexes were found.")
+                st.warning("Pinecone API key is valid but 'rag-index' was not found. "
+                           f"Available indexes: {indexes if indexes else 'None'}")
         except Exception as e:
             PINECONE_OK = False
             st.error(f"Pinecone init failed: {e}")
@@ -474,7 +475,7 @@ class EnhancedRAGChatbot:
         if EMBEDDINGS_OK:
             try:
                 self.embeddings = HUGGINGFACE_EMBEDDINGS(
-                    model_name="BAAI/bge-large-en-v1.5",
+                    model_name="llama-text-embed-v2",
                     model_kwargs={"device": "cpu"}
                 )
             except Exception as e:
@@ -1188,6 +1189,7 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
 
 
