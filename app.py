@@ -474,7 +474,7 @@ class EnhancedRAGChatbot:
         if EMBEDDINGS_OK:
             try:
                 self.embeddings = HUGGINGFACE_EMBEDDINGS(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    model_name="sentence-transformers/llama-text-embed-v2",
                     model_kwargs={"device": "cpu"}
                 )
             except Exception as e:
@@ -539,7 +539,7 @@ Current Date: {current_date}"""),
         # -------------------
         self._load_default_documents()
         
-    def ensure_index_exists(self, index_name: str = "ariba-chatbot", dimension: int = 384):
+    def ensure_index_exists(self, index_name: str = "rag-index", dimension: int = 1024):
         """Ensure the Pinecone index exists, create it if missing."""
         try:
             pc = Pinecone(api_key=st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY")))
@@ -576,9 +576,9 @@ Current Date: {current_date}"""),
         
         if self.embeddings is not None and PINECONE_OK and PINECONE:
             try:
-                index_name = "ariba-chatbot"
+                index_name = "rag-index"
                 
-                if self.ensure_index_exists(index_name, dimension=384):
+                if self.ensure_index_exists(index_name, dimension = 1024):
                     self.vectorstore = PINECONE.from_documents(
                         docs, self.embeddings, index_name=index_name
                     )
@@ -1188,4 +1188,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
