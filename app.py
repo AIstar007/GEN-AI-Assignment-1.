@@ -859,7 +859,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("LLM Settings")
     st.session_state.temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.temperature, key="temperature_slider")
-    st.session_state.selected_model = st.selectbox("Model", ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"], index=0, key="model_select")
+    st.session_state.selected_model = st.selectbox("Model", ["gemma2-9b-it", "qwen/qwen3-32b", "llama3-8b-8192"], index=0, key="model_select")
     st.markdown("---")
     st.subheader("Diagnostics")
     if EMBEDDINGS_OK:
@@ -1092,8 +1092,8 @@ with st.container():
     with chat_cols[0]:
         st.selectbox(
             "Model",
-            ["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"],
-            index=["gemma2-9b-it", "mixtral-8x7b-32768", "llama3-8b-8192"].index(st.session_state.selected_model) if "selected_model" in st.session_state else 0,
+            ["gemma2-9b-it", "qwen/qwen3-32b", "llama3-8b-8192"],
+            index=["gemma2-9b-it", "qwen/qwen3-32b", "llama3-8b-8192"].index(st.session_state.selected_model) if "selected_model" in st.session_state else 0,
             key="selected_model",
             label_visibility="collapsed",
             format_func=lambda x: f"🧠 {x}"
@@ -1197,4 +1197,5 @@ if st.session_state.get("speak_text") and st.session_state.get("audio_enabled", 
     </script>
     ''', unsafe_allow_html=True)
     del st.session_state.speak_text
+
 
